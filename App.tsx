@@ -687,6 +687,9 @@ const App = () => {
   const [mentionedNodeIds, setMentionedNodeIds] = useState<string[]>([]);
   const [selectedNodeForMention, setSelectedNodeForMention] = useState<{ nodeId: string; nodeTitle: string } | null>(null);
 
+  // Screen Element Mention State (Blue - @ Mention for ImmersiveView only)
+  const [mentionedScreenElements, setMentionedScreenElements] = useState<Record<string, any>>({});
+
   // Camera State (Lifted)
   const [view, setView] = useState<CanvasView>({ 
       x: -(LAYOUT_CENTER_X - (window.innerWidth / 2)) * INITIAL_ZOOM, 
@@ -1184,10 +1187,63 @@ const App = () => {
     }
   };
 
+  // Screen Element Mention Handlers (Blue - @ Mention Mode for ImmersiveView)
+  const handleScreenElementMentionSelect = (nodeId: string, element: any) => {
+    const screenNode = nodes.find(n => n.id === nodeId);
+    if (screenNode) {
+      const elementId = `${nodeId}-${element.cssPath}`;
+      const fullLabel = `${screenNode.title}-${element.label}`;
+
+      // Add to mentioned screen elements
+      setMentionedScreenElements(prev => ({
+        ...prev,
+        [elementId]: {
+          id: elementId,
+          nodeId,
+          cssPath: element.cssPath,
+          label: element.label,
+          boundingBox: element.boundingBox
+        }
+      }));
+
+      // Insert to chat input
+      setSelectedNodeForMention({
+        nodeId: elementId,
+        nodeTitle: fullLabel
+      });
+
+      // Exit selection mode
+      setIsCanvasSelectionMode(false);
+    }
+  };
+
+  const handleRemoveScreenElementMention = (elementId: string) => {
+    const element = mentionedScreenElements[elementId];
+    if (element) {
+      // Remove from state
+      setMentionedScreenElements(prev => {
+        const newState = { ...prev };
+        delete newState[elementId];
+        return newState;
+      });
+
+      // Trigger removal from input
+      const screenNode = nodes.find(n => n.id === element.nodeId);
+      if (screenNode) {
+        const fullLabel = `${screenNode.title}-${element.label}`;
+        setSelectedNodeForMention({
+          nodeId: elementId,
+          nodeTitle: `REMOVE:${fullLabel}`
+        });
+      }
+    }
+  };
+
   const handleSendMessage = (content: string) => {
     setMessages(p => [...p, { id: Date.now().toString(), role: 'user', content, timestamp: Date.now() }]);
-    // Clear mentioned nodes after sending
+    // Clear mentioned nodes and elements after sending
     setMentionedNodeIds([]);
+    setMentionedScreenElements({});
   };
 
   // ESC key to exit canvas selection mode
@@ -1245,6 +1301,11 @@ const App = () => {
              data={getRunningScreenData()!}
              onClose={() => setRunningScreenId(null)}
              onNavigate={handleNavigate}
+             nodeId={runningScreenId}
+             isCanvasSelectionMode={isCanvasSelectionMode}
+             onElementMentionSelect={(element) => handleScreenElementMentionSelect(runningScreenId, element)}
+             mentionedElements={Object.values(mentionedScreenElements).filter((el: any) => el.nodeId === runningScreenId)}
+             onRemoveElementMention={(elementId) => handleRemoveScreenElementMention(elementId)}
           />
         )}
 

@@ -132,6 +132,10 @@ interface PlanStep {
 - 图标颜色按节点类型区分
 
 ##### 4.3.3 Canvas 选择模式
+**功能范围**：
+- 只能选择整个节点（不支持选择 Screen 内部元素）
+- Screen 内部元素选择仅在 Run Prototype 模式（ImmersiveView）中可用
+
 **视觉反馈**：
 - 光标变为 pointer
 - Hover 节点显示**蓝色高亮框**（`ring-4 ring-blue-500/50`）
@@ -152,7 +156,7 @@ interface PlanStep {
 - 被 mention 的节点显示**蓝色边框**（`ring-2 ring-blue-500`）
 - 节点左上方显示蓝色 Badge：`@节点名称 ×`
 - Badge 跟随节点移动（包括拖动、缩放）
-- 节点设置 `overflow-visible` 以显示 Badge
+- 被 mention 的节点自动设置 `overflow-visible` 和 `z-20`（确保 Badge 完整显示）
 
 **消息历史中**：
 - Mention 按节点类型显示彩色文本
@@ -178,6 +182,32 @@ interface PlanStep {
 - 输入框清空
 - 所有 mention 的视觉效果清除（边框和 Badge 消失）
 - `mentionedNodeIds` 状态重置为空数组
+
+##### 4.3.7 Run Prototype 模式的内部元素 @ Mention
+**功能说明**：
+- 仅在 Run Prototype（ImmersiveView）模式下支持选择和 mention Screen 内部元素
+- Canvas 模式下只能选择整个节点
+
+**触发方式**：
+- 在 Run Prototype 全屏预览中，输入 `@` 进入 Canvas Selection Mode
+- 选择 "Select from Canvas" 进入元素选择模式
+
+**选择体验**：
+- 顶部显示蓝色提示条："Select an element to mention"
+- 鼠标悬停元素时显示蓝色高亮框（2px solid #3b82f6）
+- Overlay 层拦截点击事件，确保选择流畅
+- 点击元素完成选择，自动退出选择模式
+
+**技术实现**：
+- 使用 `generateCSSPath()` 生成元素的 CSS 选择器路径
+- 使用 `extractElementLabel()` 提取元素标识（优先使用 className）
+- 记录元素的 boundingBox 位置（相对于容器）
+- Badge 格式：`@屏幕名称-元素标识`
+
+**Badge 显示**：
+- 蓝色 Badge 显示在元素左上方 32px 处
+- 格式：`@Home Screen-hero-section ×`
+- 支持点击 × 删除 mention
 
 ### 5. Simulation 触发
 

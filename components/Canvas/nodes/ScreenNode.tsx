@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Play, FileText, Lock, RefreshCw, Smartphone } from 'lucide-react';
 import { ScreenData } from '../../../types';
 import { MOBILE_SCREEN_WIDTH, MOBILE_SCREEN_HEIGHT, WEB_SCREEN_WIDTH, WEB_SCREEN_HEIGHT } from '../../../constants';
@@ -12,7 +12,15 @@ interface ScreenNodeProps {
   onEditPlan?: () => void;
 }
 
-export const ScreenNode: React.FC<ScreenNodeProps> = ({ title, data, loading, onRun, onEditPlan }) => {
+export const ScreenNode: React.FC<ScreenNodeProps> = ({
+  title,
+  data,
+  loading,
+  onRun,
+  onEditPlan
+}) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+
   if (loading || !data) {
     return (
       <div className="w-full h-full bg-white flex flex-col items-center justify-center animate-pulse rounded-xl border border-slate-200">
@@ -40,7 +48,7 @@ export const ScreenNode: React.FC<ScreenNodeProps> = ({ title, data, loading, on
              </div>
          </div>
          <div className="flex items-center gap-2">
-            <button 
+            <button
                 onClick={(e) => {
                     e.stopPropagation();
                     onEditPlan?.();
@@ -50,7 +58,7 @@ export const ScreenNode: React.FC<ScreenNodeProps> = ({ title, data, loading, on
                 <FileText size={14} className="text-slate-400" />
                 View Plan
             </button>
-            <button 
+            <button
                 onClick={(e) => {
                     e.stopPropagation();
                     onRun?.();
@@ -64,8 +72,8 @@ export const ScreenNode: React.FC<ScreenNodeProps> = ({ title, data, loading, on
       </div>
 
       {/* Frame Container */}
-      <div 
-        className={`flex flex-col overflow-hidden shadow-xl relative hover:ring-4 hover:ring-emerald-500/20 transition-all duration-300 bg-white
+      <div
+        className={`flex flex-col overflow-visible shadow-xl relative hover:ring-4 hover:ring-emerald-500/20 transition-all duration-300 bg-white
             ${isWeb ? 'rounded-lg border border-slate-300' : 'rounded-[32px] border-4 border-slate-800'}
         `}
         style={{ width, height }}
@@ -102,12 +110,19 @@ export const ScreenNode: React.FC<ScreenNodeProps> = ({ title, data, loading, on
             </>
         )}
 
-        {/* Rendered HTML Content */}
-        <div
-            className="flex-1 overflow-y-auto relative bg-white custom-scrollbar"
-            dangerouslySetInnerHTML={{ __html: data.htmlContent }}
-            onWheel={(e) => e.stopPropagation()} // Prevent canvas zoom when scrolling content
-        />
+        {/* Rendered HTML Content (Static Mode) */}
+        <div className="flex-1 relative overflow-hidden">
+          <div
+              ref={contentRef}
+              className="absolute inset-0 overflow-y-auto bg-white custom-scrollbar"
+              style={{
+                pointerEvents: 'none',  // 禁用原生 HTML 交互
+                userSelect: 'none'       // 禁用文本选择
+              }}
+              dangerouslySetInnerHTML={{ __html: data.htmlContent }}
+              onWheel={(e) => e.stopPropagation()} // Prevent canvas zoom when scrolling content
+          />
+        </div>
 
         {/* Mobile Bottom Bezel */}
         {!isWeb && (

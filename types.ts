@@ -40,6 +40,20 @@ export interface WhiteboardData {
   elements: WhiteboardElement[];
 }
 
+// Screen 内部元素的引用
+export interface ScreenElement {
+  id: string;                    // 唯一标识
+  nodeId: string;                // 所属 Screen 节点 ID
+  cssPath: string;               // CSS 选择器路径
+  label: string;                 // 显示名称（如 "hero-section"）
+  boundingBox?: {                // 元素位置（用于定位 Badge）
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 export interface ScreenData {
   htmlContent: string; // Raw HTML/Tailwind
   screenName: string;

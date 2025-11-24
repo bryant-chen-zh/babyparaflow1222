@@ -782,11 +782,11 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     key={node.id}
                     data-id={node.id}
                     className={`canvas-node absolute shadow-sm transition-all duration-200 rounded-2xl bg-white
-                        ${node.type === NodeType.SCREEN ? 'z-20' : 'z-10'}
+                        ${node.type === NodeType.SCREEN || isMentioned ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
                         ${isHovered ? 'ring-4 ring-emerald-500/50 shadow-xl' : ''}
                         ${isHoveredInSelectionMode ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}
                         ${isSelected ? 'ring-2 ring-emerald-500' : ''}
-                        ${isMentioned ? 'ring-2 ring-blue-500 overflow-visible' : 'overflow-hidden'}
+                        ${isMentioned ? 'ring-2 ring-blue-500' : ''}
                         ${isDragging ? 'scale-[1.02] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
                     `}
@@ -801,7 +801,13 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         <WhiteboardNode title={node.title} data={node.data as any} loading={node.status === 'loading'} onEdit={() => onEditNode(node.id)} />
                     )}
                     {node.type === NodeType.SCREEN && (
-                        <ScreenNode title={node.title} data={node.data as any} loading={node.status === 'loading'} onRun={() => onRunNode(node.id)} onEditPlan={() => onEditNode(node.id)} />
+                        <ScreenNode
+                            title={node.title}
+                            data={node.data as any}
+                            loading={node.status === 'loading'}
+                            onRun={() => onRunNode(node.id)}
+                            onEditPlan={() => onEditNode(node.id)}
+                        />
                     )}
                     {node.type === NodeType.TABLE && (
                         <TableNode title={node.title} data={node.data as any} loading={node.status === 'loading'} onExpand={() => onEditNode(node.id)} />
