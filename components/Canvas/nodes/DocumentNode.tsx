@@ -53,14 +53,21 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({ title, data, loading
       </div>
 
       {/* Rich Content Preview */}
-      <div 
+      <div
         className="flex-1 p-6 overflow-y-auto custom-scrollbar cursor-text"
         onDoubleClick={(e) => {
             e.stopPropagation();
             onEdit?.();
         }}
       >
-        <div className="space-y-2 pointer-events-none select-none">
+        {blocks.length === 0 ? (
+          // Empty document placeholder
+          <div className="flex flex-col h-full pt-12 px-8">
+            <h2 className="text-2xl font-normal text-slate-800 mb-2">Untitled Document</h2>
+            <p className="text-sm text-slate-400 mb-8">Double-click or click "Edit" to start writing</p>
+          </div>
+        ) : (
+          <div className="space-y-2 pointer-events-none select-none">
             {blocks.map((block, index) => {
                 // Calculate numbered list index logic if needed (simplified here)
                 let listIndex = 0;
@@ -100,7 +107,8 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({ title, data, loading
                         return <p key={block.id} className={`text-sm text-slate-600 leading-relaxed ${block.content.trim() === '' ? 'h-2' : ''}`}>{renderInlineStyles(block.content)}</p>;
                 }
             })}
-        </div>
+          </div>
+        )}
       </div>
       
       {/* Footer status */}

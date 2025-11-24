@@ -5,12 +5,11 @@ import { WhiteboardNode } from './nodes/WhiteboardNode';
 import { ScreenNode } from './nodes/ScreenNode';
 import { TableNode } from './nodes/TableNode';
 import { APINode } from './nodes/APINode';
-import { TaskNode } from './nodes/TaskNode';
 import { IntegrationNode } from './nodes/IntegrationNode';
 import { PinMarker } from './PinMarker';
 import { MentionBadge } from './MentionBadge';
 import { MOBILE_SCREEN_WIDTH, MOBILE_SCREEN_HEIGHT, WEB_SCREEN_WIDTH, WEB_SCREEN_HEIGHT, MIN_ZOOM, MAX_ZOOM, SECTION_IDS } from '../../constants';
-import { Plus, Minus, FileText, GitBranch, Smartphone, GripHorizontal, MousePointer2, Hand, BoxSelect, MapPin, Table as TableIcon, Globe, CheckSquare, Zap, Link2, Database } from 'lucide-react';
+import { Plus, Minus, FileText, GitBranch, Smartphone, GripHorizontal, MousePointer2, Hand, BoxSelect, MapPin, Table as TableIcon, Globe, Zap, Database } from 'lucide-react';
 
 interface CanvasContainerProps {
   nodes: CanvasNode[];
@@ -70,8 +69,6 @@ const getNodeDimensions = (node: CanvasNode) => {
         return { width: 280, height: 320 };
     } else if (node.type === NodeType.API) {
         return { width: 320, height: 240 };
-    } else if (node.type === NodeType.TASK) {
-        return { width: 240, height: 160 };
     } else if (node.type === NodeType.INTEGRATION) {
         return { width: 320, height: 240 };
     }
@@ -353,7 +350,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     }
 
     // 2. Drawing Logic
-    if (['CREATE_SECTION', 'CREATE_DOCUMENT', 'CREATE_CHART', 'CREATE_TABLE', 'CREATE_API', 'CREATE_TASK', 'CREATE_INTEGRATION'].includes(effectiveTool)) {
+    if (['CREATE_SECTION', 'CREATE_DOCUMENT', 'CREATE_CHART', 'CREATE_TABLE', 'CREATE_API', 'CREATE_INTEGRATION'].includes(effectiveTool)) {
         setIsDrawing(true);
         setDrawStart(canvasPos);
         setGhostBox({ x: canvasPos.x, y: canvasPos.y, w: 0, h: 0 });
@@ -537,10 +534,6 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     type = NodeType.API;
                     title = 'New Endpoint';
                     data = { method: 'GET', path: '/api/resource', params: [] };
-                } else if (effectiveTool === 'CREATE_TASK') {
-                    type = NodeType.TASK;
-                    title = 'New Task';
-                    data = { description: '', status: 'todo' };
                 } else if (effectiveTool === 'CREATE_INTEGRATION') {
                     type = NodeType.INTEGRATION;
                     title = 'New Integration';
@@ -688,7 +681,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       className={`w-full h-full bg-slate-50 overflow-hidden relative canvas-grid
         ${effectiveTool === 'HAND' || isDraggingCanvas ? 'cursor-grab active:cursor-grabbing' : ''}
         ${effectiveTool === 'SELECT' && !isDraggingCanvas ? 'cursor-default' : ''}
-        ${['CREATE_SECTION', 'CREATE_DOCUMENT', 'CREATE_CHART', 'CREATE_TABLE', 'CREATE_API', 'CREATE_TASK', 'CREATE_INTEGRATION'].includes(effectiveTool) ? 'cursor-crosshair' : ''}
+        ${['CREATE_SECTION', 'CREATE_DOCUMENT', 'CREATE_CHART', 'CREATE_TABLE', 'CREATE_API', 'CREATE_INTEGRATION'].includes(effectiveTool) ? 'cursor-crosshair' : ''}
         ${effectiveTool === 'PIN' ? 'cursor-copy' : ''}
       `}
       onMouseDown={handleMouseDown}
@@ -815,9 +808,6 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     {node.type === NodeType.API && (
                         <APINode title={node.title} data={node.data as any} loading={node.status === 'loading'} />
                     )}
-                    {node.type === NodeType.TASK && (
-                        <TaskNode title={node.title} data={node.data as any} loading={node.status === 'loading'} />
-                    )}
                     {node.type === NodeType.INTEGRATION && (
                         <IntegrationNode title={node.title} data={node.data as IntegrationData} loading={node.status === 'loading'} onEdit={() => onEditNode(node.id)} />
                     )}
@@ -883,7 +873,6 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                  <AddMenuItem icon={GitBranch} label="Chart" onClick={() => setActiveTool('CREATE_CHART')} active={activeTool === 'CREATE_CHART'} />
                  <AddMenuItem icon={TableIcon} label="Table" onClick={() => setActiveTool('CREATE_TABLE')} active={activeTool === 'CREATE_TABLE'} />
                  <AddMenuItem icon={Globe} label="API" onClick={() => setActiveTool('CREATE_API')} active={activeTool === 'CREATE_API'} />
-                 <AddMenuItem icon={CheckSquare} label="Task" onClick={() => setActiveTool('CREATE_TASK')} active={activeTool === 'CREATE_TASK'} />
                  <AddMenuItem icon={Zap} label="Integration" onClick={() => setActiveTool('CREATE_INTEGRATION')} active={activeTool === 'CREATE_INTEGRATION'} />
              </div>
           </div>

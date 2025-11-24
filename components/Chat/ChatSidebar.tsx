@@ -1,7 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign } from 'lucide-react';
-import { ChatMessage, CanvasNode, CanvasSection } from '../../types';
+import { Send, Bot, User, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play } from 'lucide-react';
+import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
+import { ToolCallMessage } from './ToolCallMessage';
+import { QuestionCard } from './QuestionCard';
+import { FloatingTodoBar } from './FloatingTodoBar';
 
 interface ChatSidebarProps {
   messages: ChatMessage[];
@@ -16,6 +19,11 @@ interface ChatSidebarProps {
   mentionedNodeIds: string[];
   selectedNodeForMention?: { nodeId: string; nodeTitle: string } | null;
   onClearSelectedNode?: () => void;
+  onStartExecution?: (messageId: string) => void;
+  onAnswerQuestion?: (messageId: string, optionId: string) => void;
+  onSkipQuestion?: (messageId: string) => void;
+  onContinueQuestion?: (messageId: string) => void;
+  currentPlan?: PlanStep[] | null;
 }
 
 // Helper function to get node icon
@@ -71,7 +79,12 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onEnterCanvasSelection,
   mentionedNodeIds,
   selectedNodeForMention,
-  onClearSelectedNode
+  onClearSelectedNode,
+  onStartExecution,
+  onAnswerQuestion,
+  onSkipQuestion,
+  onContinueQuestion,
+  currentPlan
 }) => {
   // State
   const [input, setInput] = useState('');
@@ -359,50 +372,82 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 <p className="text-slate-500 text-sm">Describe your app idea.<br/>I'll handle the PRD, Flow, and Prototype.</p>
             </div>
         )}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-          >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
-              msg.role === 'user' ? 'bg-white border border-slate-200' : 'bg-emerald-600'
-            }`}>
-              {msg.role === 'user' ? <User size={14} className="text-slate-600" /> : <Bot size={14} className="text-white" />}
-            </div>
-            <div className="flex flex-col gap-2 max-w-[80%]">
-                {/* Text Content */}
-                {msg.content && (
-                    <div className={`p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                    msg.role === 'user'
-                        ? 'bg-slate-100 text-slate-800 rounded-tr-none border border-slate-200'
-                        : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none shadow-sm'
-                    }`}>
-                    {renderMessageContent(msg.content)}
-                    </div>
-                )}
+        {messages.map((msg) => {
+          // 工具调用消息
+          if (msg.type === 'tool_call' && msg.toolCall) {
+            return <ToolCallMessage key={msg.id} toolCall={msg.toolCall} />;
+          }
 
-                {/* Plan/Steps Renderer */}
-                {msg.plan && (
-                    <div className="bg-white border border-slate-100 rounded-xl shadow-sm p-3 flex flex-col gap-2">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Execution Plan</div>
-                        {msg.plan.map(step => (
-                            <div key={step.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 border border-slate-100">
-                                {step.status === 'pending' && <CircleDashed size={16} className="text-slate-300" />}
-                                {step.status === 'loading' && <Loader2 size={16} className="text-blue-500 animate-spin" />}
-                                {step.status === 'done' && <CheckCircle2 size={16} className="text-emerald-500" />}
-                                
-                                <span className={`text-xs font-medium ${
-                                    step.status === 'pending' ? 'text-slate-400' : 'text-slate-700'
-                                }`}>
-                                    {step.label}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                )}
+          // 问题消息
+          if (msg.type === 'question' && msg.question) {
+            return (
+              <QuestionCard
+                key={msg.id}
+                question={msg.question}
+                onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
+                onSkip={() => onSkipQuestion?.(msg.id)}
+                onContinue={() => onContinueQuestion?.(msg.id)}
+              />
+            );
+          }
+
+          // 用户和 AI 消息
+          return (
+            <div
+              key={msg.id}
+              className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
+                msg.role === 'user' ? 'bg-white border border-slate-200' : 'bg-emerald-600'
+              }`}>
+                {msg.role === 'user' ? <User size={14} className="text-slate-600" /> : <Bot size={14} className="text-white" />}
+              </div>
+              <div className="flex flex-col gap-2 max-w-[80%]">
+                  {/* Text Content */}
+                  {msg.content && (
+                      <div className={`p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                      msg.role === 'user'
+                          ? 'bg-slate-100 text-slate-800 rounded-tr-none border border-slate-200'
+                          : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none shadow-sm'
+                      }`}>
+                      {renderMessageContent(msg.content)}
+                      </div>
+                  )}
+
+                  {/* Plan/Steps Renderer */}
+                  {msg.plan && (
+                      <div className="bg-white border border-slate-100 rounded-xl shadow-sm p-3 flex flex-col gap-2">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Execution Plan</div>
+                          {msg.plan.map(step => (
+                              <div key={step.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                  {step.status === 'pending' && <CircleDashed size={16} className="text-slate-300" />}
+                                  {step.status === 'loading' && <Loader2 size={16} className="text-blue-500 animate-spin" />}
+                                  {step.status === 'done' && <CheckCircle2 size={16} className="text-emerald-500" />}
+
+                                  <span className={`text-xs font-medium ${
+                                      step.status === 'pending' ? 'text-slate-400' : 'text-slate-700'
+                                  }`}>
+                                      {step.label}
+                                  </span>
+                              </div>
+                          ))}
+
+                          {/* Start execution button - at bottom */}
+                          {!msg.executionStarted && onStartExecution && (
+                            <button
+                              onClick={() => onStartExecution(msg.id)}
+                              className="flex items-center justify-center gap-2 mt-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm w-full"
+                            >
+                              <Play size={14} />
+                              <span>Start Execution</span>
+                            </button>
+                          )}
+                      </div>
+                  )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {isProcessing && (
             <div className="flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center shrink-0 animate-pulse shadow-sm">
@@ -468,6 +513,9 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               )}
             </div>
           )}
+
+          {/* Floating Todo Bar - shows all tasks above input */}
+          <FloatingTodoBar plan={currentPlan || null} />
 
           <textarea
             ref={textareaRef}

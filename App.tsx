@@ -7,7 +7,7 @@ import { ImmersiveView } from './components/Preview/ImmersiveView';
 import { PinModal } from './components/Editor/PinModal';
 import { DatabaseModal } from './components/Editor/DatabaseModal';
 import { IntegrationModal } from './components/Editor/IntegrationModal';
-import { CanvasNode, ChatMessage, NodeType, DocumentData, WhiteboardData, ScreenData, CanvasEdge, CanvasView, PlanStep, CanvasPin, TableData, APIData, TaskData, IntegrationData } from './types';
+import { CanvasNode, ChatMessage, NodeType, DocumentData, WhiteboardData, ScreenData, CanvasEdge, CanvasView, PlanStep, CanvasPin, TableData, APIData, IntegrationData, QuestionData } from './types';
 import { 
   LAYOUT_CENTER_X, 
   LAYOUT_CENTER_Y, 
@@ -21,6 +21,58 @@ import {
   WEB_NODE_SPACING_Y,
   INITIAL_ZOOM
 } from './constants';
+
+// --- Product Decision Questions Configuration ---
+const PRODUCT_QUESTIONS: QuestionData[] = [
+  {
+    questionId: 'q1',
+    questionText: 'What type of project do you want to build?',
+    currentPage: 1,
+    totalPages: 4,
+    options: [
+      { id: 'saas', label: 'SaaS Product', description: 'CRM, project management tools, collaboration platforms' },
+      { id: 'ecommerce', label: 'E-commerce Platform', description: 'Product displays, shopping cart, payment system' },
+      { id: 'social', label: 'Social/Content Platform', description: 'User-generated content, feeds, community' },
+      { id: 'dashboard', label: 'Data Analytics/Dashboard', description: 'Charts, reports, data visualization' }
+    ]
+  },
+  {
+    questionId: 'q2',
+    questionText: 'What is your core user scenario?',
+    currentPage: 2,
+    totalPages: 4,
+    options: [
+      { id: 'single', label: 'Single-user Operations', description: 'Personal tools, independent use' },
+      { id: 'collaboration', label: 'Multi-user Collaboration', description: 'Team workspaces, real-time collaboration' },
+      { id: 'marketplace', label: 'Two-sided Market', description: 'Buyers-sellers, creators-consumers' },
+      { id: 'admin-user', label: 'Admin-User Separation', description: 'Backend management + user-facing' }
+    ]
+  },
+  {
+    questionId: 'q3',
+    questionText: 'What is your technical complexity level?',
+    currentPage: 3,
+    totalPages: 4,
+    options: [
+      { id: 'mvp', label: 'MVP Quick Validation', description: 'Core features first, rapid launch' },
+      { id: 'standard', label: 'Standard Product', description: 'Common feature combinations, mature solutions' },
+      { id: 'custom', label: 'Custom Requirements', description: 'Special business logic, unique features' },
+      { id: 'enterprise', label: 'Enterprise/High-Performance', description: 'Performance optimization, distributed, large-scale' }
+    ]
+  },
+  {
+    questionId: 'q4',
+    questionText: 'What is your preferred deployment and architecture?',
+    currentPage: 4,
+    totalPages: 4,
+    options: [
+      { id: 'monolith', label: 'Monolithic Application', description: 'Monolithic architecture + relational database' },
+      { id: 'restful', label: 'Frontend-Backend Separation', description: 'React/Vue + RESTful API' },
+      { id: 'microservices', label: 'Microservices Architecture', description: 'Service splitting + message queues' },
+      { id: 'serverless', label: 'Serverless', description: 'Cloud functions + NoSQL database' }
+    ]
+  }
+];
 
 // --- SHARED COMPONENTS (MOCK HTML STRINGS) ---
 const NAV_HTML = `
@@ -73,7 +125,6 @@ const MOCK_LUMA_DATA: {
   tableUsers: TableData;
   tableEvents: TableData;
   apiLogin: APIData;
-  taskLogin: TaskData;
 } = {
   doc1: {
     content: `# User Personas
@@ -663,10 +714,6 @@ used          BOOLEAN DEFAULT FALSE
       description: 'Send magic link to user email.',
       params: [{ name: 'email', type: 'string', required: true }],
       response: '{ "success": true, "message": "Magic link sent" }'
-  },
-  taskLogin: {
-      description: 'Implement passwordless login flow using magic links (SendGrid + Redis).',
-      status: 'todo'
   }
 };
 
@@ -676,11 +723,17 @@ const App = () => {
   const [pins, setPins] = useState<CanvasPin[]>([]);
   const [sections, setSections] = useState<any[]>([]); // Will be populated during simulation or user creation
   const [messages, setMessages] = useState<ChatMessage[]>([
-      { id: 'welcome', role: 'ai', content: 'Hi! I can help you turn your idea into a full product prototype. Just describe your app idea to get started!', timestamp: Date.now() }
+      { id: 'welcome', type: 'ai', role: 'ai', content: 'Hi! I can help you turn your idea into a full product prototype. Just describe your app idea to get started!', timestamp: Date.now() }
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [simulationStarted, setSimulationStarted] = useState(false);
+
+  // 新增状态：问题流程和执行控制
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questionsCompleted, setQuestionsCompleted] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<PlanStep[] | null>(null);
 
   // Canvas @ Mention State
   const [isCanvasSelectionMode, setIsCanvasSelectionMode] = useState(false);
@@ -710,329 +763,54 @@ const App = () => {
   // --- THE DIRECTOR: Simulation Sequence ---
   const runSimulation = async () => {
       setSimulationStarted(true);
-      
+
       // 1. User Request
       const userMsgId = Date.now().toString();
-      setMessages(prev => [...prev, { id: userMsgId, role: 'user', content: "I want to build a community event app like Luma.", timestamp: Date.now() }]);
+      setMessages(prev => [...prev, {
+        id: userMsgId,
+        type: 'user',
+        role: 'user',
+        content: "I want to build a community event app like Luma.",
+        timestamp: Date.now()
+      }]);
       setIsProcessing(true);
 
       // Wait a bit...
       await new Promise(r => setTimeout(r, 1000));
 
-      // 2. AI Response + Plan
-      const planMsgId = 'ai-plan';
-      const initialSteps: PlanStep[] = [
-          { id: 's1', label: 'Drafting Product Strategy', status: 'pending' },
-          { id: 's2', label: 'Designing User Flow', status: 'pending' },
-          { id: 's3', label: 'Generating Prototype', status: 'pending' },
-          { id: 's4', label: 'Planning Backend Architecture', status: 'pending' },
-          { id: 's5', label: 'Designing Data & Resources', status: 'pending' },
-          { id: 's6', label: 'Integrating Third-party Services', status: 'pending' },
-      ];
-      setMessages(prev => [...prev, { 
-          id: planMsgId, 
-          role: 'ai', 
-          content: "Sure! I'll help you build a Luma clone. Here is the execution plan:", 
-          timestamp: Date.now(),
-          plan: initialSteps
+      // 2. AI 回复：需要了解更多信息
+      setMessages(prev => [...prev, {
+        id: 'ai-intro',
+        type: 'ai',
+        role: 'ai',
+        content: "Great! Before I start designing your product, let me ask you a few key questions to better understand your requirements.",
+        timestamp: Date.now()
       }]);
-
-      // --- PHASE 1: DOCUMENT ---
-      await new Promise(r => setTimeout(r, 1000));
-      updatePlanStatus(planMsgId, 's1', 'loading');
-      
-      // Pan Camera to Doc Section
-      const cx = LAYOUT_CENTER_X;
-      const cy = LAYOUT_CENTER_Y;
-      const docY = cy + DOCUMENT_SECTION_Y_OFFSET;
-      panTo(cx, docY, 0.5);
-
-      // Create Document Nodes (Loading)
-      await new Promise(r => setTimeout(r, 800));
-      const docNodes: CanvasNode[] = [
-        { id: 'node-doc-1', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X, y: docY, title: 'User Personas', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-        { id: 'node-doc-2', type: NodeType.DOCUMENT, x: cx, y: docY, title: 'Product Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-        { id: 'node-doc-3', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X, y: docY, title: 'Core Requirements', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-      ];
-      setNodes(prev => [...prev, ...docNodes]);
-
-      // Reveal Doc Content
-      await new Promise(r => setTimeout(r, 1500));
-      setNodes(prev => prev.map(n => {
-          if (n.id === 'node-doc-1') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 };
-          if (n.id === 'node-doc-2') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 };
-          if (n.id === 'node-doc-3') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 };
-          return n;
-      }));
-      updatePlanStatus(planMsgId, 's1', 'done');
-
-      // --- PHASE 2: CHART ---
-      await new Promise(r => setTimeout(r, 1000));
-      updatePlanStatus(planMsgId, 's2', 'loading');
-
-      // Pan Camera to Chart
-      const chartX = cx + CHART_SECTION_X_OFFSET;
-      const chartY = cy - 300;
-      panTo(chartX + 400, chartY + 300, 0.6); // Center on chart roughly
-
-      // Create Chart Node (Loading)
-      await new Promise(r => setTimeout(r, 800));
-      const chartNode: CanvasNode = { 
-          id: 'node-whiteboard-1', type: NodeType.WHITEBOARD, x: chartX, y: chartY, title: 'User Flow Chart', status: 'loading', data: null, sectionId: SECTION_IDS.CHART 
-      };
-      setNodes(prev => [...prev, chartNode]);
-
-      // Reveal Chart
-      await new Promise(r => setTimeout(r, 1500));
-      setNodes(prev => prev.map(n => n.id === 'node-whiteboard-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.whiteboard } : n));
-      updatePlanStatus(planMsgId, 's2', 'done');
-
-      // --- PHASE 3: PROTOTYPE ---
-      await new Promise(r => setTimeout(r, 1000));
-      updatePlanStatus(planMsgId, 's3', 'loading');
-
-      // Pan Camera to Screens (Center)
-      panTo(cx, cy + 400, 0.25); // Zoom out to see grid
-
-      // Create Skeleton Screens
-      await new Promise(r => setTimeout(r, 800));
-      const sY1 = cy;
-      const sY2 = cy + WEB_NODE_SPACING_Y;
-      const sXStart = cx - WEB_NODE_SPACING_X; 
-      
-      const screenNodes: CanvasNode[] = [
-          { id: 'node-screen-1', type: NodeType.SCREEN, x: sXStart, y: sY1, title: 'Home', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-          { id: 'node-screen-2', type: NodeType.SCREEN, x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-          { id: 'node-screen-3', type: NodeType.SCREEN, x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-          { id: 'node-screen-4', type: NodeType.SCREEN, x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-          { id: 'node-screen-5', type: NodeType.SCREEN, x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-      ];
-      setNodes(prev => [...prev, ...screenNodes]);
-      
-      // Render Edges
-      const flowEdges: CanvasEdge[] = [
-        { id: 'e1', fromNode: 'node-screen-1', toNode: 'node-screen-2' },
-        { id: 'e2', fromNode: 'node-screen-2', toNode: 'node-screen-3' },
-        { id: 'e3', fromNode: 'node-screen-1', toNode: 'node-screen-4' },
-        { id: 'e4', fromNode: 'node-screen-1', toNode: 'node-screen-5' },
-      ];
-      setEdges(flowEdges);
-
-      // Reveal Screens Sequentially
-      const revealScreen = async (id: string, data: any) => {
-          await new Promise(r => setTimeout(r, 600));
-          setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
-      };
-
-      await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1);
-      await revealScreen('node-screen-2', MOCK_LUMA_DATA.screen2);
-      await revealScreen('node-screen-3', MOCK_LUMA_DATA.screen3);
-      await revealScreen('node-screen-4', MOCK_LUMA_DATA.screen4);
-      await revealScreen('node-screen-5', MOCK_LUMA_DATA.screen5);
-
-      updatePlanStatus(planMsgId, 's3', 'done');
-
-      // --- PHASE 4: BACKEND PLANNING (Documents) ---
-      await new Promise(r => setTimeout(r, 1500));
-      updatePlanStatus(planMsgId, 's4', 'loading');
-
-      // Pan to backend documents area
-      panTo(cx + 2800, cy - 100, 0.4);
-
-      // 4.1 Define backend region layout
-      const backendBaseX = cx + BACKEND_SECTION_X_OFFSET;
-      const backendBaseY = cy + BACKEND_SECTION_Y_OFFSET;
-
-      // 4.2 Create Backend Planning Documents (Loading)
-      const backendDocX = backendBaseX;
-      const backendDocY = backendBaseY;
-      const backendDocSpacing = 500;
-
-      const backendDocNodes: CanvasNode[] = [
-        { 
-          id: 'node-doc-dev-plan', 
-          type: NodeType.DOCUMENT, 
-          x: backendDocX, 
-          y: backendDocY,
-          title: 'Development Plan',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: null
-        },
-        { 
-          id: 'node-doc-tech-stack', 
-          type: NodeType.DOCUMENT, 
-          x: backendDocX + backendDocSpacing, 
-          y: backendDocY,
-          title: 'Tech Stack',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: null
-        },
-        { 
-          id: 'node-doc-architecture', 
-          type: NodeType.DOCUMENT, 
-          x: backendDocX, 
-          y: backendDocY + 600,
-          title: 'Architecture Design',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: null
-        },
-        { 
-          id: 'node-doc-data-model', 
-          type: NodeType.DOCUMENT, 
-          x: backendDocX + backendDocSpacing, 
-          y: backendDocY + 600,
-          title: 'Data Model',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: null
-        }
-      ];
-
-      setNodes(prev => [...prev, ...backendDocNodes]);
-
-      // Reveal Backend Documents
-      await new Promise(r => setTimeout(r, 1500));
-      setNodes(prev => prev.map(n => {
-        if (n.id === 'node-doc-dev-plan') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDevPlan };
-        if (n.id === 'node-doc-tech-stack') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docTechStack };
-        if (n.id === 'node-doc-architecture') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docArchitecture };
-        if (n.id === 'node-doc-data-model') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDataModel };
-          return n;
-      }));
-
-      updatePlanStatus(planMsgId, 's4', 'done');
-
-      // --- PHASE 5: BACKEND RESOURCES (Database & Tasks) ---
-      await new Promise(r => setTimeout(r, 1500));
-      updatePlanStatus(planMsgId, 's5', 'loading');
-
-      // Pan to database area
-      panTo(cx + 2750, cy + 300, 0.4);
-      
-      // 5.1 Create Database nodes
-      const dbY = backendDocY + 1300;
-      const dbSpacingX = 350;
-
-      const databaseNodes: CanvasNode[] = [
-        { 
-          id: 'node-table-users', 
-          type: NodeType.TABLE, 
-          x: backendBaseX + 100, 
-          y: dbY,
-          title: 'Users',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: MOCK_LUMA_DATA.tableUsers
-        },
-        { 
-          id: 'node-table-events', 
-          type: NodeType.TABLE, 
-          x: backendBaseX + 100 + dbSpacingX, 
-          y: dbY,
-          title: 'Events',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: MOCK_LUMA_DATA.tableEvents
-        }
-      ];
-
-      setNodes(prev => [...prev, ...databaseNodes]);
-
-      // Reveal database nodes
-      await new Promise(r => setTimeout(r, 1000));
-      setNodes(prev => prev.map(n => 
-        n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.TABLE
-          ? { ...n, status: 'done' } 
-          : n
-      ));
-
-      updatePlanStatus(planMsgId, 's5', 'done');
-
-      // --- PHASE 6: THIRD-PARTY INTEGRATION ---
-      await new Promise(r => setTimeout(r, 1000));
-      updatePlanStatus(planMsgId, 's6', 'loading');
-
-      // Pan to integration area
-      panTo(cx + 2700, cy + 600, 0.35);
-
-      // 6.1 Create Integration nodes (below databases)
-      const integrationX = backendBaseX + 100;
-      const integrationY = dbY + 400;
-
-      const integrationNodes: CanvasNode[] = [
-        { 
-          id: 'node-integration-sendgrid', 
-          type: NodeType.INTEGRATION, 
-          x: integrationX, 
-          y: integrationY,
-          title: 'SendGrid',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: {
-            provider: 'SendGrid',
-            category: 'Email',
-            description: 'Send magic link emails',
-            apiEndpoint: 'https://api.sendgrid.com/v3',
-            requiredKeys: ['SENDGRID_API_KEY'],
-            documentation: 'https://docs.sendgrid.com'
-          }
-        },
-        { 
-          id: 'node-integration-googlecal', 
-          type: NodeType.INTEGRATION, 
-          x: integrationX + 380, 
-          y: integrationY,
-          title: 'Google Calendar',
-          status: 'loading',
-          sectionId: SECTION_IDS.BACKEND,
-          data: {
-            provider: 'Google Calendar API',
-            category: 'Calendar',
-            description: 'Sync events to user calendar',
-            apiEndpoint: 'https://www.googleapis.com/calendar/v3',
-            requiredKeys: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
-            documentation: 'https://developers.google.com/calendar'
-          }
-        }
-      ];
-
-      setNodes(prev => [...prev, ...integrationNodes]);
-
-      // 6.2 No edges to integrations (removed)
-      await new Promise(r => setTimeout(r, 800));
-
-      // Gradually reveal integrations
-      await new Promise(r => setTimeout(r, 1000));
-      setNodes(prev => prev.map(n => 
-        n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.INTEGRATION
-          ? { ...n, status: 'done' } 
-          : n
-      ));
-
-      updatePlanStatus(planMsgId, 's6', 'done');
-
-      // 6.4 Final zoom out to see global view
-      await new Promise(r => setTimeout(r, 800));
-      panTo(cx + 1000, cy, 0.16);
-
       setIsProcessing(false);
-      setMessages(prev => [...prev, { 
-        id: 'final', 
-        role: 'ai', 
-        content: "Complete! You now have a full-stack prototype with backend infrastructure, task breakdown, and third-party integrations mapped out. You can manually adjust connections and add more resources as needed.", 
-        timestamp: Date.now() 
+
+      // 3. 显示问题容器（单个容器，稍后会更新问题内容）
+      await new Promise(r => setTimeout(r, 800));
+      const firstQuestion = PRODUCT_QUESTIONS[0];
+      setMessages(prev => [...prev, {
+        id: 'question-container',  // 固定 ID，用于更新问题
+        type: 'question',
+        content: '',
+        timestamp: Date.now(),
+        question: firstQuestion
       }]);
+
+      // Note: Actual workflow execution triggered via handleStartExecution -> executeWorkflow
   };
 
   const updatePlanStatus = (msgId: string, stepId: string, status: 'pending' | 'loading' | 'done') => {
       setMessages(prev => prev.map(msg => {
           if (msg.id === msgId && msg.plan) {
+              const updatedPlan = msg.plan.map(s => s.id === stepId ? { ...s, status } : s);
+              // 同时更新 currentPlan 状态
+              setCurrentPlan(updatedPlan);
               return {
                   ...msg,
-                  plan: msg.plan.map(s => s.id === stepId ? { ...s, status } : s)
+                  plan: updatedPlan
               };
           }
           return msg;
@@ -1042,11 +820,423 @@ const App = () => {
   const panTo = (targetX: number, targetY: number, targetScale: number) => {
       const screenW = window.innerWidth;
       const screenH = window.innerHeight;
-      
+
       const newX = -(targetX * targetScale) + (screenW / 2);
       const newY = -(targetY * targetScale) + (screenH / 2);
 
       setView({ x: newX, y: newY, scale: targetScale });
+  };
+
+  // --- 问题处理函数 ---
+  const handleAnswerQuestion = (messageId: string, optionId: string) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId && msg.question) {
+        return {
+          ...msg,
+          question: { ...msg.question, selectedOptionId: optionId }
+        };
+      }
+      return msg;
+    }));
+
+    // 记录答案
+    const question = messages.find(m => m.id === messageId)?.question;
+    if (question) {
+      setSelectedAnswers(prev => ({ ...prev, [question.questionId]: optionId }));
+    }
+  };
+
+  const handleContinueQuestion = async (messageId: string) => {
+    // Wait for animation
+    await new Promise(r => setTimeout(r, 300));
+
+    if (currentQuestionIndex < PRODUCT_QUESTIONS.length - 1) {
+      const nextIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIndex);
+
+      // 更新同一个问题容器为下一题（不添加新消息）
+      const nextQuestion = PRODUCT_QUESTIONS[nextIndex];
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === 'question-container') {
+          return {
+            ...msg,
+            question: nextQuestion  // 更新问题内容
+          };
+        }
+        return msg;
+      }));
+    } else {
+      // 所有问题回答完毕，移除问题容器
+      setQuestionsCompleted(true);
+      setMessages(prev => prev.filter(msg => msg.id !== 'question-container'));
+
+      // 添加 AI 确认消息和执行计划
+      await new Promise(r => setTimeout(r, 500));
+
+      const planMsgId = 'ai-plan';
+      const initialSteps: PlanStep[] = [
+        { id: 's1', label: 'Drafting Product Strategy', status: 'pending' },
+        { id: 's2', label: 'Designing User Flow', status: 'pending' },
+        { id: 's3', label: 'Generating Prototype', status: 'pending' },
+        { id: 's4', label: 'Planning Backend Architecture', status: 'pending' },
+        { id: 's5', label: 'Designing Data & Resources', status: 'pending' },
+        { id: 's6', label: 'Integrating Third-party Services', status: 'pending' },
+      ];
+
+      setMessages(prev => [...prev, {
+        id: planMsgId,
+        type: 'ai',
+        role: 'ai',
+        content: "Got it! Based on your requirements, here's my execution plan:",
+        timestamp: Date.now(),
+        plan: initialSteps,
+        executionStarted: false
+      }]);
+    }
+  };
+
+  const handleSkipQuestion = async (messageId: string) => {
+    // 跳过当前问题，使用默认值
+    handleContinueQuestion(messageId);
+  };
+
+  const handleStartExecution = async (messageId: string) => {
+    // 标记执行已开始
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId) {
+        // 设置当前 plan，同时标记执行已开始
+        if (msg.plan) {
+          setCurrentPlan(msg.plan);
+        }
+        return { ...msg, executionStarted: true };
+      }
+      return msg;
+    }));
+
+    // 开始执行 6-Act 流程
+    await new Promise(r => setTimeout(r, 500));
+    executeWorkflow(messageId);
+  };
+
+  // 添加工具调用消息的辅助函数
+  const addToolCallMessage = (tool: any, action: string, filePath?: string, status: 'loading' | 'success' | 'error' = 'loading') => {
+    const msgId = `tool-${Date.now()}-${Math.random()}`;
+    setMessages(prev => [...prev, {
+      id: msgId,
+      type: 'tool_call',
+      content: '',
+      timestamp: Date.now(),
+      toolCall: { tool, action, filePath, status }
+    }]);
+    return msgId;
+  };
+
+  const updateToolCallStatus = (msgId: string, status: 'loading' | 'success' | 'error') => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === msgId && msg.toolCall) {
+        return {
+          ...msg,
+          toolCall: { ...msg.toolCall, status }
+        };
+      }
+      return msg;
+    }));
+  };
+
+  // 执行工作流（原 runSimulation 的核心逻辑）
+  const executeWorkflow = async (planMsgId: string) => {
+    // --- PHASE 1: DOCUMENT ---
+    await new Promise(r => setTimeout(r, 800));
+    updatePlanStatus(planMsgId, 's1', 'loading');
+
+    // Add tool call simulation
+    const tool1 = addToolCallMessage('grep', 'Search Code', 'requirements.md');
+    await new Promise(r => setTimeout(r, 600));
+    updateToolCallStatus(tool1, 'success');
+
+    const tool2 = addToolCallMessage('read', 'Read File', 'package.json');
+    await new Promise(r => setTimeout(r, 600));
+    updateToolCallStatus(tool2, 'success');
+
+    // Pan Camera to Doc Section
+    const cx = LAYOUT_CENTER_X;
+    const cy = LAYOUT_CENTER_Y;
+    const docY = cy + DOCUMENT_SECTION_Y_OFFSET;
+    panTo(cx, docY, 0.5);
+
+    // Create Document Nodes (Loading)
+    await new Promise(r => setTimeout(r, 800));
+    const docNodes: CanvasNode[] = [
+      { id: 'node-doc-1', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X, y: docY, title: 'User Personas', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
+      { id: 'node-doc-2', type: NodeType.DOCUMENT, x: cx, y: docY, title: 'Product Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
+      { id: 'node-doc-3', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X, y: docY, title: 'Core Requirements', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
+    ];
+    setNodes(prev => [...prev, ...docNodes]);
+
+    // Reveal Doc Content
+    await new Promise(r => setTimeout(r, 1500));
+    setNodes(prev => prev.map(n => {
+        if (n.id === 'node-doc-1') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 };
+        if (n.id === 'node-doc-2') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 };
+        if (n.id === 'node-doc-3') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 };
+        return n;
+    }));
+    updatePlanStatus(planMsgId, 's1', 'done');
+
+    // --- PHASE 2: CHART ---
+    await new Promise(r => setTimeout(r, 1000));
+    updatePlanStatus(planMsgId, 's2', 'loading');
+
+    const chartX = cx + CHART_SECTION_X_OFFSET;
+    const chartY = cy - 300;
+    panTo(chartX + 400, chartY + 300, 0.6);
+
+    await new Promise(r => setTimeout(r, 800));
+    const chartNode: CanvasNode = {
+        id: 'node-whiteboard-1', type: NodeType.WHITEBOARD, x: chartX, y: chartY, title: 'User Flow Chart', status: 'loading', data: null, sectionId: SECTION_IDS.CHART
+    };
+    setNodes(prev => [...prev, chartNode]);
+
+    await new Promise(r => setTimeout(r, 1500));
+    setNodes(prev => prev.map(n => n.id === 'node-whiteboard-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.whiteboard } : n));
+    updatePlanStatus(planMsgId, 's2', 'done');
+
+    // --- PHASE 3: PROTOTYPE ---
+    await new Promise(r => setTimeout(r, 1000));
+    updatePlanStatus(planMsgId, 's3', 'loading');
+
+    // Pan Camera to Screens (Center)
+    panTo(cx, cy + 400, 0.25); // Zoom out to see grid
+
+    // Create Skeleton Screens
+    await new Promise(r => setTimeout(r, 800));
+    const sY1 = cy;
+    const sY2 = cy + WEB_NODE_SPACING_Y;
+    const sXStart = cx - WEB_NODE_SPACING_X;
+
+    const screenNodes: CanvasNode[] = [
+        { id: 'node-screen-1', type: NodeType.SCREEN, x: sXStart, y: sY1, title: 'Home', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
+        { id: 'node-screen-2', type: NodeType.SCREEN, x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
+        { id: 'node-screen-3', type: NodeType.SCREEN, x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
+        { id: 'node-screen-4', type: NodeType.SCREEN, x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
+        { id: 'node-screen-5', type: NodeType.SCREEN, x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
+    ];
+    setNodes(prev => [...prev, ...screenNodes]);
+
+    // Render Edges
+    const flowEdges: CanvasEdge[] = [
+      { id: 'e1', fromNode: 'node-screen-1', toNode: 'node-screen-2' },
+      { id: 'e2', fromNode: 'node-screen-2', toNode: 'node-screen-3' },
+      { id: 'e3', fromNode: 'node-screen-1', toNode: 'node-screen-4' },
+      { id: 'e4', fromNode: 'node-screen-1', toNode: 'node-screen-5' },
+    ];
+    setEdges(flowEdges);
+
+    // Reveal Screens Sequentially
+    const revealScreen = async (id: string, data: any) => {
+        await new Promise(r => setTimeout(r, 600));
+        setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
+    };
+
+    await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1);
+    await revealScreen('node-screen-2', MOCK_LUMA_DATA.screen2);
+    await revealScreen('node-screen-3', MOCK_LUMA_DATA.screen3);
+    await revealScreen('node-screen-4', MOCK_LUMA_DATA.screen4);
+    await revealScreen('node-screen-5', MOCK_LUMA_DATA.screen5);
+
+    updatePlanStatus(planMsgId, 's3', 'done');
+
+    // --- PHASE 4: BACKEND PLANNING (Documents) ---
+    await new Promise(r => setTimeout(r, 1500));
+    updatePlanStatus(planMsgId, 's4', 'loading');
+
+    // Pan to backend documents area
+    panTo(cx + 2800, cy - 100, 0.4);
+
+    // 4.1 Define backend region layout
+    const backendBaseX = cx + BACKEND_SECTION_X_OFFSET;
+    const backendBaseY = cy + BACKEND_SECTION_Y_OFFSET;
+
+    // 4.2 Create Backend Planning Documents (Loading)
+    const backendDocX = backendBaseX;
+    const backendDocY = backendBaseY;
+    const backendDocSpacing = 500;
+
+    const backendDocNodes: CanvasNode[] = [
+      {
+        id: 'node-doc-dev-plan',
+        type: NodeType.DOCUMENT,
+        x: backendDocX,
+        y: backendDocY,
+        title: 'Development Plan',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      },
+      {
+        id: 'node-doc-tech-stack',
+        type: NodeType.DOCUMENT,
+        x: backendDocX + backendDocSpacing,
+        y: backendDocY,
+        title: 'Tech Stack',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      },
+      {
+        id: 'node-doc-architecture',
+        type: NodeType.DOCUMENT,
+        x: backendDocX,
+        y: backendDocY + 600,
+        title: 'Architecture Design',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      },
+      {
+        id: 'node-doc-data-model',
+        type: NodeType.DOCUMENT,
+        x: backendDocX + backendDocSpacing,
+        y: backendDocY + 600,
+        title: 'Data Model',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      }
+    ];
+
+    setNodes(prev => [...prev, ...backendDocNodes]);
+
+    // Reveal Backend Documents
+    await new Promise(r => setTimeout(r, 1500));
+    setNodes(prev => prev.map(n => {
+      if (n.id === 'node-doc-dev-plan') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDevPlan };
+      if (n.id === 'node-doc-tech-stack') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docTechStack };
+      if (n.id === 'node-doc-architecture') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docArchitecture };
+      if (n.id === 'node-doc-data-model') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDataModel };
+        return n;
+    }));
+
+    updatePlanStatus(planMsgId, 's4', 'done');
+
+    // --- PHASE 5: BACKEND RESOURCES (Database & Tasks) ---
+    await new Promise(r => setTimeout(r, 1500));
+    updatePlanStatus(planMsgId, 's5', 'loading');
+
+    // Pan to database area
+    panTo(cx + 2750, cy + 300, 0.4);
+
+    // 5.1 Create Database nodes
+    const dbY = backendDocY + 1300;
+    const dbSpacingX = 350;
+
+    const databaseNodes: CanvasNode[] = [
+      {
+        id: 'node-table-users',
+        type: NodeType.TABLE,
+        x: backendBaseX + 100,
+        y: dbY,
+        title: 'Users',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: MOCK_LUMA_DATA.tableUsers
+      },
+      {
+        id: 'node-table-events',
+        type: NodeType.TABLE,
+        x: backendBaseX + 100 + dbSpacingX,
+        y: dbY,
+        title: 'Events',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: MOCK_LUMA_DATA.tableEvents
+      }
+    ];
+
+    setNodes(prev => [...prev, ...databaseNodes]);
+
+    // Reveal database nodes
+    await new Promise(r => setTimeout(r, 1000));
+    setNodes(prev => prev.map(n =>
+      n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.TABLE
+        ? { ...n, status: 'done' }
+        : n
+    ));
+
+    updatePlanStatus(planMsgId, 's5', 'done');
+
+    // --- PHASE 6: THIRD-PARTY INTEGRATION ---
+    await new Promise(r => setTimeout(r, 1000));
+    updatePlanStatus(planMsgId, 's6', 'loading');
+
+    // Pan to integration area
+    panTo(cx + 2700, cy + 600, 0.35);
+
+    // 6.1 Create Integration nodes (below databases)
+    const integrationX = backendBaseX + 100;
+    const integrationY = dbY + 400;
+
+    const integrationNodes: CanvasNode[] = [
+      {
+        id: 'node-integration-sendgrid',
+        type: NodeType.INTEGRATION,
+        x: integrationX,
+        y: integrationY,
+        title: 'SendGrid',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: {
+          provider: 'SendGrid',
+          category: 'Email',
+          description: 'Send magic link emails',
+          apiEndpoint: 'https://api.sendgrid.com/v3',
+          requiredKeys: ['SENDGRID_API_KEY'],
+          documentation: 'https://docs.sendgrid.com'
+        }
+      },
+      {
+        id: 'node-integration-googlecal',
+        type: NodeType.INTEGRATION,
+        x: integrationX + 380,
+        y: integrationY,
+        title: 'Google Calendar',
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: {
+          provider: 'Google Calendar API',
+          category: 'Calendar',
+          description: 'Sync events to user calendar',
+          apiEndpoint: 'https://www.googleapis.com/calendar/v3',
+          requiredKeys: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+          documentation: 'https://developers.google.com/calendar'
+        }
+      }
+    ];
+
+    setNodes(prev => [...prev, ...integrationNodes]);
+
+    // Gradually reveal integrations
+    await new Promise(r => setTimeout(r, 1000));
+    setNodes(prev => prev.map(n =>
+      n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.INTEGRATION
+        ? { ...n, status: 'done' }
+        : n
+    ));
+
+    updatePlanStatus(planMsgId, 's6', 'done');
+
+    // Final zoom out to see global view
+    await new Promise(r => setTimeout(r, 800));
+    panTo(cx + 1000, cy, 0.16);
+
+    setIsProcessing(false);
+    setMessages(prev => [...prev, {
+      id: 'final',
+      type: 'ai',
+      role: 'ai',
+      content: "Complete! You now have a full-stack prototype with backend infrastructure, task breakdown, and third-party integrations mapped out. You can manually adjust connections and add more resources as needed.",
+      timestamp: Date.now()
+    }]);
   };
 
   // --- Standard Handlers ---
@@ -1272,6 +1462,11 @@ const App = () => {
         mentionedNodeIds={mentionedNodeIds}
         selectedNodeForMention={selectedNodeForMention}
         onClearSelectedNode={handleClearSelectedNode}
+        onStartExecution={handleStartExecution}
+        onAnswerQuestion={handleAnswerQuestion}
+        onSkipQuestion={handleSkipQuestion}
+        onContinueQuestion={handleContinueQuestion}
+        currentPlan={currentPlan}
       />
 
       <main className="flex-1 relative h-full">

@@ -58,10 +58,11 @@ Visual Coding Agent 是一个**可视化产品规划工具**，通过无限画�
 
 1. **Canvas System** - 无限画布、视图控制、Section 管理
 2. **Node System** - 6 种节点类型及其渲染和交互
-3. **Chat System** - AI 对话界面和执行计划展示
+3. **Chat System** - AI 对话界面、工具调用展示、问题卡片、执行计划展示
 4. **Editor System** - 各类内容编辑器
 5. **Preview System** - 原型预览和导航
 6. **Workflow Engine** - 模拟演示编排引擎
+7. **Message System** - 多类型消息展示（文本、工具调用、问题、计划）
 
 ## 设计原则
 
@@ -119,4 +120,5 @@ Visual Coding Agent 是一个**可视化产品规划工具**，通过无限画�
 - 支持真实的 AI 内容生成（非 mock 数据）
 - 代码导出和项目初始化能力
 - 与开发工具链集成
+
 

@@ -5,7 +5,6 @@ export enum NodeType {
   SCREEN = 'SCREEN',
   TABLE = 'TABLE',
   API = 'API',
-  TASK = 'TASK',
   INTEGRATION = 'INTEGRATION'
 }
 
@@ -84,11 +83,6 @@ export interface APIData {
   response?: string; // Short JSON snippet or description
 }
 
-export interface TaskData {
-  description: string;
-  status: 'todo' | 'in_progress' | 'done';
-}
-
 export interface IntegrationData {
   provider: string;        // 'SendGrid', 'Stripe', 'Google Calendar'
   category: string;        // 'Email', 'Payment', 'Auth', 'Storage'
@@ -99,7 +93,7 @@ export interface IntegrationData {
 }
 
 export interface CanvasNode extends BaseNode {
-  data: DocumentData | WhiteboardData | ScreenData | FlowData | TableData | APIData | TaskData | IntegrationData | null;
+  data: DocumentData | WhiteboardData | ScreenData | FlowData | TableData | APIData | IntegrationData | null;
 }
 
 export interface CanvasEdge {
@@ -124,12 +118,49 @@ export interface PlanStep {
     status: 'pending' | 'loading' | 'done';
 }
 
+// Tool call type enum
+export type ToolType = 'grep' | 'read' | 'bash' | 'edit' | 'write' | 'glob';
+
+// Tool call message data
+export interface ToolCallData {
+  tool: ToolType;
+  action: string;       // Friendly action description, e.g. "Search Code"
+  filePath?: string;    // File path being operated on
+  status: 'loading' | 'success' | 'error';
+  details?: string;     // Optional details
+}
+
+// Question option
+export interface QuestionOption {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+// Question message data
+export interface QuestionData {
+  questionId: string;
+  questionText: string;
+  options: QuestionOption[];
+  currentPage: number;
+  totalPages: number;
+  selectedOptionId?: string;
+  answered?: boolean;
+}
+
+// Extended message types
+export type MessageType = 'user' | 'ai' | 'tool_call' | 'question';
+
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'ai';
+  type: MessageType;    // Message type
+  role?: 'user' | 'ai'; // For backward compatibility, used by user/ai types
   content: string;
   timestamp: number;
-  plan?: PlanStep[]; // Optional To-Do list for this message
+  plan?: PlanStep[];           // Optional To-Do list for this message
+  toolCall?: ToolCallData;     // Tool call data
+  question?: QuestionData;     // Question data
+  executionStarted?: boolean;  // Whether "Start Execution" has been clicked
 }
 
 export interface CanvasView {
@@ -138,7 +169,7 @@ export interface CanvasView {
   scale: number;
 }
 
-export type CanvasTool = 'SELECT' | 'HAND' | 'PIN' | 'CREATE_SECTION' | 'CREATE_DOCUMENT' | 'CREATE_CHART' | 'CREATE_TABLE' | 'CREATE_API' | 'CREATE_TASK' | 'CREATE_INTEGRATION' | 'CREATE_EDGE';
+export type CanvasTool = 'SELECT' | 'HAND' | 'PIN' | 'CREATE_SECTION' | 'CREATE_DOCUMENT' | 'CREATE_CHART' | 'CREATE_TABLE' | 'CREATE_API' | 'CREATE_INTEGRATION' | 'CREATE_EDGE';
 
 export interface CanvasSection {
     id: string;

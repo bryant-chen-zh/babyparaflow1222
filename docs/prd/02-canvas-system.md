@@ -184,3 +184,4 @@ const canvasY = (clientY - view.y) / view.scale;
 - [ ] 画布历史记录
 - [ ] 触摸板手势支持
 
+
