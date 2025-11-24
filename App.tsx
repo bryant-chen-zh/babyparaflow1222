@@ -12,7 +12,7 @@ import {
   LAYOUT_CENTER_X, 
   LAYOUT_CENTER_Y, 
   DOCUMENT_SECTION_Y_OFFSET, 
-  CHART_SECTION_X_OFFSET,
+  CHART_SECTION_X_OFFSET, 
   BACKEND_SECTION_X_OFFSET,
   BACKEND_SECTION_Y_OFFSET,
   SECTION_IDS,
@@ -891,7 +891,7 @@ const App = () => {
         if (n.id === 'node-doc-tech-stack') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docTechStack };
         if (n.id === 'node-doc-architecture') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docArchitecture };
         if (n.id === 'node-doc-data-model') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDataModel };
-        return n;
+          return n;
       }));
 
       updatePlanStatus(planMsgId, 's4', 'done');
@@ -902,7 +902,7 @@ const App = () => {
 
       // Pan to database area
       panTo(cx + 2750, cy + 300, 0.4);
-
+      
       // 5.1 Create Database nodes
       const dbY = backendDocY + 1300;
       const dbSpacingX = 350;

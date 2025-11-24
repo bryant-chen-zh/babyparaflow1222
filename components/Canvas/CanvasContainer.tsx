@@ -173,7 +173,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     onNodeMove, 
     onBatchNodeMove, 
     onNodeSectionChange, 
-    onAddNode,
+    onAddNode, 
     onEditNode, 
     onRunNode,
     onAddPinClick,
@@ -501,7 +501,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
         
         onViewChange({ x: newX, y: newY, scale: newScale });
       } else {
-        onViewChange({ ...view, scale: newScale });
+      onViewChange({ ...view, scale: newScale });
       }
     } else {
       onViewChange({ ...view, x: view.x - e.deltaX, y: view.y - e.deltaY });
