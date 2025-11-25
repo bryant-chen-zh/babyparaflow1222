@@ -45,10 +45,10 @@ type SectionTheme = 'blue' | 'purple' | 'emerald' | 'orange' | 'rose' | 'slate';
 const THEMES: Record<SectionTheme, { border: string; bg: string; badge: string; dot: string }> = {
   blue: { border: 'border-blue-200/50', bg: 'bg-blue-50/30', badge: 'bg-blue-100 text-blue-600', dot: 'bg-blue-500' },
   purple: { border: 'border-purple-200/50', bg: 'bg-purple-50/30', badge: 'bg-purple-100 text-purple-600', dot: 'bg-purple-500' },
-  emerald: { border: 'border-emerald-200/80', bg: 'bg-emerald-50/40', badge: 'bg-emerald-100 text-emerald-600', dot: 'bg-emerald-500' },
+  emerald: { border: 'border-brand-200/60', bg: 'bg-brand-50/30', badge: 'bg-brand-100 text-moxt-brand-7', dot: 'bg-moxt-brand-7' },
   orange: { border: 'border-orange-200/50', bg: 'bg-orange-50/30', badge: 'bg-orange-100 text-orange-600', dot: 'bg-orange-500' },
   rose: { border: 'border-rose-200/50', bg: 'bg-rose-50/30', badge: 'bg-rose-100 text-rose-600', dot: 'bg-rose-500' },
-  slate: { border: 'border-slate-200/50', bg: 'bg-slate-100/30', badge: 'bg-slate-200 text-slate-600', dot: 'bg-slate-500' },
+  slate: { border: 'border-moxt-line-1', bg: 'bg-moxt-fill-1/30', badge: 'bg-moxt-fill-2 text-moxt-text-2', dot: 'bg-moxt-text-3' },
 };
 
 // Helper to get dimensions for a node type
@@ -703,7 +703,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   return (
     <div 
       ref={containerRef}
-      className={`w-full h-full bg-slate-50 overflow-hidden relative canvas-grid
+      className={`w-full h-full bg-moxt-theme-bg overflow-hidden relative canvas-grid
         ${effectiveTool === 'HAND' || isDraggingCanvas ? 'cursor-grab active:cursor-grabbing' : ''}
         ${effectiveTool === 'SELECT' && !isDraggingCanvas ? 'cursor-default' : ''}
         ${['CREATE_SECTION', 'CREATE_DOCUMENT', 'CREATE_CHART', 'CREATE_TABLE', 'CREATE_API', 'CREATE_INTEGRATION'].includes(effectiveTool) ? 'cursor-crosshair' : ''}
@@ -780,7 +780,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
             {/* --- GHOST BOX --- */}
             {ghostBox && (
                 <div 
-                    className="absolute border-2 border-emerald-500 bg-emerald-500/10 rounded-2xl z-50"
+                    className="absolute border-2 border-moxt-brand-7 bg-moxt-brand-7/10 rounded-lg z-50"
                     style={{ left: ghostBox.x, top: ghostBox.y, width: ghostBox.w, height: ghostBox.h }}
                 />
             )}
@@ -803,14 +803,14 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 <div
                     key={node.id}
                     data-id={node.id}
-                    className={`canvas-node absolute shadow-sm rounded-2xl bg-white
+                    className={`canvas-node absolute shadow-sm rounded-lg bg-moxt-fill-white border border-moxt-line-1
                         ${!isDragging ? 'transition-all duration-200' : ''}
                         ${node.type === NodeType.SCREEN || isMentioned ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
-                        ${isHovered ? 'ring-4 ring-emerald-500/50 shadow-xl' : ''}
-                        ${isHoveredInSelectionMode ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}
-                        ${isSelected ? 'ring-2 ring-emerald-500' : ''}
+                        ${isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
+                        ${isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
+                        ${isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
                         ${isMentioned ? 'ring-2 ring-blue-500' : ''}
-                        ${isDragging ? 'scale-[1.02] cursor-grabbing' : ''}
+                        ${isDragging ? 'scale-[1.01] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
                     `}
                     style={{
@@ -873,7 +873,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       </div>
 
       {/* --- FLOATING TOOLBAR --- */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-full shadow-2xl border border-slate-200 p-1.5 flex items-center gap-1 z-50 transition-transform hover:scale-105">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-moxt-fill-white rounded-full shadow-lg border border-moxt-line-1 p-1 flex items-center gap-0.5 z-50 transition-transform hover:scale-[1.02]">
           <ToolbarButton 
             icon={MousePointer2} 
             active={effectiveTool === 'SELECT'} 
@@ -892,18 +892,18 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
             onClick={() => setActiveTool('PIN')} 
             tooltip="Pin Tool (P)"
           />
-          <div className="w-px h-6 bg-slate-200 mx-1"></div>
+          <div className="w-px h-5 bg-moxt-line-1 mx-1"></div>
           
           {/* Add Menu Group */}
           <div className="relative group">
-             <button className="p-3 bg-emerald-600 text-white hover:bg-emerald-500 rounded-full transition-colors shadow-lg shadow-emerald-600/20">
-                <Plus size={24} />
+             <button className="p-2.5 bg-moxt-brand-7 text-white hover:opacity-90 rounded-full transition-colors">
+                <Plus size={20} />
              </button>
              {/* Bridge */}
              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-20 bg-transparent" /> 
              {/* Hover Menu */}
-             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 hidden group-hover:flex flex-col gap-2 bg-white p-2 rounded-2xl shadow-xl border border-slate-100 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 after:content-[''] after:absolute after:top-full after:left-0 after:w-full after:h-4 after:bg-transparent">
-                 <div className="text-[10px] font-bold text-slate-400 uppercase px-3 py-1 tracking-wider">Create Entity</div>
+             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 hidden group-hover:flex flex-col gap-1 bg-moxt-fill-white p-2 rounded-lg shadow-lg border border-moxt-line-1 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 after:content-[''] after:absolute after:top-full after:left-0 after:w-full after:h-4 after:bg-transparent">
+                 <div className="text-[10px] font-bold text-moxt-text-4 uppercase px-3 py-1 tracking-wider">Create Entity</div>
                  <AddMenuItem icon={BoxSelect} label="Section" onClick={() => setActiveTool('CREATE_SECTION')} active={activeTool === 'CREATE_SECTION'} />
                  <AddMenuItem icon={FileText} label="Document" onClick={() => setActiveTool('CREATE_DOCUMENT')} active={activeTool === 'CREATE_DOCUMENT'} />
                  <AddMenuItem icon={GitBranch} label="Chart" onClick={() => setActiveTool('CREATE_CHART')} active={activeTool === 'CREATE_CHART'} />
@@ -915,12 +915,12 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       </div>
 
       {/* HUD / Controls (Zoom) */}
-      <div className="absolute bottom-8 right-8 flex flex-col gap-4 pointer-events-auto z-50">
-         <div className="bg-white/90 backdrop-blur shadow-xl border border-slate-200 rounded-2xl p-2 flex flex-col gap-2">
-            <button onClick={zoomIn} className="p-2 hover:bg-slate-100 rounded-xl text-slate-600 transition-colors"><Plus size={20} /></button>
-            <button onClick={zoomOut} className="p-2 hover:bg-slate-100 rounded-xl text-slate-600 transition-colors"><Minus size={20} /></button>
+      <div className="absolute bottom-8 right-8 flex flex-col gap-2 pointer-events-auto z-50">
+         <div className="bg-moxt-fill-white/95 backdrop-blur shadow-md border border-moxt-line-1 rounded-lg p-1.5 flex flex-col gap-1">
+            <button onClick={zoomIn} className="p-1.5 hover:bg-moxt-fill-1 rounded-md text-moxt-text-2 transition-colors"><Plus size={18} /></button>
+            <button onClick={zoomOut} className="p-1.5 hover:bg-moxt-fill-1 rounded-md text-moxt-text-2 transition-colors"><Minus size={18} /></button>
          </div>
-         <div className="bg-slate-900/90 backdrop-blur text-white text-xs font-mono py-1.5 px-3 rounded-full shadow-lg text-center">
+         <div className="bg-moxt-text-1/90 backdrop-blur text-white text-12 font-mono py-1 px-2.5 rounded-md shadow-md text-center">
              {Math.round(view.scale * 100)}%
          </div>
       </div>
@@ -933,9 +933,9 @@ const ToolbarButton = ({ icon: Icon, active, onClick, tooltip }: { icon: any, ac
     <button 
         onClick={onClick}
         title={tooltip}
-        className={`p-3 rounded-full transition-all ${active ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+        className={`p-2.5 rounded-full transition-all ${active ? 'bg-moxt-text-1 text-white' : 'text-moxt-text-3 hover:bg-moxt-fill-1 hover:text-moxt-text-1'}`}
     >
-        <Icon size={20} />
+        <Icon size={18} />
     </button>
 );
 
@@ -945,11 +945,11 @@ const AddMenuItem = ({ icon: Icon, label, onClick, active }: { icon: any, label:
             onClick();
             (document.activeElement as HTMLElement)?.blur();
         }}
-        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors w-full text-left
-            ${active ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50 text-slate-600'}
+        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-13 font-medium transition-colors w-full text-left
+            ${active ? 'bg-moxt-fill-1 text-moxt-brand-7' : 'hover:bg-moxt-fill-opacity-1 text-moxt-text-2'}
         `}
     >
-        <Icon size={16} />
+        <Icon size={14} />
         {label}
     </button>
 );

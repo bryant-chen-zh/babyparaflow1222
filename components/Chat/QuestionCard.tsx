@@ -91,26 +91,17 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
   // 折叠状态：显示答案摘要
   if (collapsed) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm max-w-[96%] mb-4 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center">
-            <HelpCircle className="w-4 h-4 text-emerald-600" />
-          </div>
-          <span className="text-sm font-semibold text-slate-900">Question Answers</span>
+      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg max-w-[96%] mb-4 p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <HelpCircle className="text-moxt-brand-7" size={14} />
+          <span className="text-13 font-semibold text-moxt-text-1">Answers Summary</span>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {allQuestions.map((q, index) => {
             const selectedOption = q.options.find(opt => opt.id === selectedAnswers[q.questionId]);
             return (
-              <div key={q.questionId} className="text-sm text-slate-600">
-                <div className="font-medium text-slate-700">
-                  问题 {index + 1}/{totalQuestions}: {q.questionText}
-                </div>
-                {selectedOption && (
-                  <div className="text-slate-500 mt-0.5">
-                    {selectedOption.label}
-                  </div>
-                )}
+              <div key={q.questionId} className="text-12 text-moxt-text-2">
+                <span className="font-medium text-moxt-text-1">Question {index + 1}/{totalQuestions}:</span> {selectedOption?.label || 'Skipped'}
               </div>
             );
           })}
@@ -120,46 +111,44 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm max-w-[96%] mb-4 flex flex-col" style={{ maxHeight: '70vh' }}>
+    <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg max-w-[96%] mb-4 flex flex-col" style={{ maxHeight: '40vh' }}>
       {/* Header: Questions title and page navigation */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 flex-shrink-0">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-moxt-line-1 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center">
-            <HelpCircle className="w-4 h-4 text-emerald-600" />
-          </div>
-          <span className="text-sm font-semibold text-slate-900">Questions</span>
+          <HelpCircle className="text-moxt-brand-7" size={14} />
+          <span className="text-13 font-semibold text-moxt-text-1">Questions</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+            className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
               currentIndex === 0
-                ? 'text-slate-300 cursor-not-allowed'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'text-moxt-text-4 cursor-not-allowed'
+                : 'text-moxt-text-2 hover:bg-moxt-fill-1'
             }`}
           >
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="w-3.5 h-3.5" />
           </button>
-          <span className="text-xs text-slate-500 font-medium min-w-[3rem] text-center">
-            {currentIndex + 1} of {totalQuestions}
+          <span className="text-12 text-moxt-text-3 font-medium min-w-[2.5rem] text-center">
+            {currentIndex + 1}/{totalQuestions}
           </span>
           <button
             onClick={handleNext}
             disabled={currentIndex === totalQuestions - 1}
-            className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+            className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${
               currentIndex === totalQuestions - 1
-                ? 'text-slate-300 cursor-not-allowed'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'text-moxt-text-4 cursor-not-allowed'
+                : 'text-moxt-text-2 hover:bg-moxt-fill-1'
             }`}
           >
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Scrollable Questions Container */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
         {allQuestions.map((q, qIndex) => {
           const isCurrentQuestion = qIndex === currentIndex;
           const isAnswered = !!selectedAnswers[q.questionId];
@@ -169,24 +158,24 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
             <div
               key={q.questionId}
               ref={el => (questionRefs.current[qIndex] = el)}
-              className="space-y-3"
+              className="space-y-2"
             >
               {/* Question Title */}
               <div className="flex items-start gap-2">
-                <div className={`text-sm font-medium transition-colors ${
-                  isCurrentQuestion ? 'text-slate-900' : isAnswered ? 'text-slate-500' : 'text-slate-700'
+                <div className={`text-13 font-medium transition-colors ${
+                  isCurrentQuestion ? 'text-moxt-text-1' : isAnswered ? 'text-moxt-text-3' : 'text-moxt-text-2'
                 }`}>
                   <span className="font-bold">{qIndex + 1}.</span> {q.questionText}
                 </div>
                 {isAnswered && (
                   <div className="flex-shrink-0">
-                    <Check className="w-4 h-4 text-green-500 mt-0.5" />
+                    <Check className="w-3.5 h-3.5 text-moxt-text-3 mt-0.5" strokeWidth={1.5} />
                   </div>
                 )}
               </div>
 
               {/* Options list - No indent, same alignment as question */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {q.options.map((option, index) => {
                   const isSelected = selectedId === option.id;
                   const label = optionLabels[index] || String.fromCharCode(65 + index);
@@ -195,16 +184,16 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
                     <button
                       key={option.id}
                       onClick={() => handleOptionClick(q.questionId, option.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center gap-3 border ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-md transition-all flex items-center gap-2.5 border ${
                         isSelected
-                          ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                          : 'bg-transparent text-slate-700 hover:bg-slate-50 border-transparent'
+                          ? 'bg-moxt-fill-2 text-moxt-text-1 border-moxt-line-2'
+                          : 'bg-transparent text-moxt-text-2 hover:bg-moxt-fill-1 border-transparent'
                       }`}
                     >
-                      <span className={`text-sm font-bold ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      <span className={`text-12 font-bold ${isSelected ? 'text-moxt-text-1' : 'text-moxt-text-4'}`}>
                         {label}
                       </span>
-                      <span className="text-sm">
+                      <span className="text-12">
                         {option.label}
                       </span>
                     </button>
@@ -217,20 +206,19 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
       </div>
 
       {/* Fixed Bottom Buttons */}
-      <div className="flex-shrink-0 border-t border-slate-100 px-4 py-3 bg-white">
-        <div className="flex items-center justify-end gap-3">
+      <div className="flex-shrink-0 border-t border-moxt-line-1 px-3 py-2.5 bg-moxt-fill-white">
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={onSkip}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-12 font-medium text-moxt-text-3 hover:text-moxt-text-1 hover:bg-moxt-fill-1 rounded-md transition-colors"
           >
             Skip
           </button>
           <button
             onClick={onContinue}
-            className="px-4 py-2 text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors shadow-sm flex items-center gap-2"
+            className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:opacity-90 rounded-md transition-colors"
           >
             Continue
-            <span className="text-white">→</span>
           </button>
         </div>
       </div>

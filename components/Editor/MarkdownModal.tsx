@@ -241,14 +241,14 @@ export const MarkdownModal: React.FC<MarkdownModalProps> = ({ isOpen, title, ini
           </button>
           <div className="h-6 w-px bg-slate-200 mx-2"></div>
           <div className="flex items-center gap-3">
-             <FileText className="text-emerald-600" size={18} />
+             <FileText className="text-brand-600" size={18} />
              <h2 className="text-slate-900 font-medium text-sm tracking-wide">{title}</h2>
           </div>
         </div>
 
         <button 
           onClick={handleClose}
-          className="px-5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-full flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all hover:scale-105 active:scale-95"
+          className="px-5 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full flex items-center gap-2 shadow-lg shadow-brand-600/20 transition-all hover:scale-105 active:scale-95"
         >
           <Check size={14} strokeWidth={3} />
           <span>Done</span>
@@ -279,7 +279,7 @@ export const MarkdownModal: React.FC<MarkdownModalProps> = ({ isOpen, title, ini
                     <div key={block.id} className="relative group my-1">
                         {/* Block Drag Handle / Add Hint */}
                         <div className="absolute -left-10 top-1.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 cursor-pointer select-none">
-                            <Plus size={16} className="hover:text-emerald-500" onClick={() => {
+                            <Plus size={16} className="hover:text-brand-500" onClick={() => {
                                 const newId = Math.random().toString(36).substr(2, 9);
                                 const newBlock: Block = { id: newId, type: 'paragraph', content: '' };
                                 setBlocks(prev => {

@@ -48,11 +48,11 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
   const getStatusIcon = (status: 'pending' | 'loading' | 'done') => {
     switch (status) {
       case 'pending':
-        return <Circle className="w-4 h-4 text-slate-400 flex-shrink-0" />;
+        return <Circle className="w-3.5 h-3.5 text-moxt-text-4 flex-shrink-0" strokeWidth={1.5} />;
       case 'loading':
-        return <Loader2 className="w-4 h-4 animate-spin text-emerald-600 flex-shrink-0" />;
+        return <Loader2 className="w-3.5 h-3.5 animate-spin text-moxt-text-2 flex-shrink-0" strokeWidth={1.5} />;
       case 'done':
-        return <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 fill-emerald-600/20" />;
+        return <CheckCircle2 className="text-moxt-brand-7 flex-shrink-0" size={14} />;
     }
   };
 
@@ -68,88 +68,85 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
   const isHeaderTaskJustCompleted = currentTask?.id === justCompletedId;
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden mb-3">
+    <div className="bg-moxt-fill-white rounded-lg shadow-md border border-moxt-line-1 overflow-hidden mb-3">
         {/* Header - always visible */}
         <button
           onClick={handleToggle}
-          className={`w-full px-3 py-3 flex items-start gap-3 hover:bg-slate-50/50 transition-all group ${
-            isHeaderTaskJustCompleted ? 'bg-emerald-50/60' : ''
+          className={`w-full px-3 py-2.5 flex items-start gap-2.5 hover:bg-moxt-fill-opacity-1 transition-all group ${
+            isHeaderTaskJustCompleted ? 'bg-moxt-fill-1' : ''
           }`}
         >
           {/* Current task icon */}
           <div className="relative flex-shrink-0 pt-0.5">
             {allCompleted ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 fill-emerald-600/20" />
+              <CheckCircle2 className="text-moxt-brand-7 flex-shrink-0" size={14} />
             ) : (
               currentTask && getStatusIcon(currentTask.status)
             )}
             {(currentTask?.status === 'loading' || isHeaderTaskJustCompleted) && (
-              <div className="absolute inset-0 bg-emerald-400/30 rounded-full animate-ping" />
+              <div className="absolute inset-0 bg-moxt-text-3/30 rounded-full animate-ping" />
             )}
           </div>
 
           {/* Task info */}
           <div className="flex-1 text-left min-w-0">
-            <div className={`text-sm font-semibold transition-colors ${
-              isHeaderTaskJustCompleted ? 'text-emerald-600' :
-              allCompleted ? 'text-emerald-600' : 'text-slate-800'
-            }`}>
+            <div className="text-13 font-semibold text-moxt-text-1 transition-colors">
               {currentTask ? currentTask.label : 'All tasks completed'}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="text-12 text-moxt-text-3 mt-0.5">
               {isHeaderTaskJustCompleted ? '✓ Completed!' :
                allCompleted ? 'Execution complete' : 'Processing...'}
             </div>
           </div>
 
           {/* Progress counter */}
-          <div className="flex items-start gap-3 flex-shrink-0 pt-0.5">
-            <span className="text-xs font-semibold text-slate-600 tabular-nums">
-              {completedCount} / {totalCount}
+          <div className="flex items-start gap-2 flex-shrink-0 pt-0.5">
+            <span className="text-12 font-semibold text-moxt-text-2 tabular-nums">
+              {completedCount}/{totalCount}
             </span>
 
             {/* Expand/collapse icon */}
             {isExpanded ? (
-              <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <ChevronDown className="w-4 h-4 text-moxt-text-4 group-hover:text-moxt-text-2 transition-colors" />
             ) : (
-              <ChevronUp className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <ChevronUp className="w-4 h-4 text-moxt-text-4 group-hover:text-moxt-text-2 transition-colors" />
             )}
           </div>
         </button>
 
         {/* Expanded content - show all tasks */}
         {isExpanded && (
-          <div className="border-t border-slate-100">
-            <div className="px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
+          <div className="border-t border-moxt-line-1">
+            <div className="px-2.5 py-2 space-y-1 max-h-48 overflow-y-auto">
               {plan.map((task, index) => {
                 const isJustCompleted = task.id === justCompletedId;
                 return (
                   <div
                     key={task.id}
-                    className={`flex items-start gap-3 px-2 py-2 rounded-xl transition-all ${
+                    className={`flex items-start gap-2 px-2 py-1.5 rounded-md transition-all ${
                       isJustCompleted
-                        ? 'bg-emerald-100 scale-105 shadow-sm' :
+                        ? 'bg-moxt-fill-2 scale-[1.02] shadow-sm' :
                       task.status === 'loading'
-                        ? 'bg-emerald-50/80' :
+                        ? 'bg-moxt-fill-1' :
                       task.status === 'done'
-                        ? 'bg-slate-50/50' :
-                        'hover:bg-slate-50/50'
+                        ? 'bg-moxt-fill-1/50' :
+                        'hover:bg-moxt-fill-opacity-1'
                     }`}
                   >
                     <div className="pt-0.5 flex-shrink-0 relative">
                       {getStatusIcon(task.status)}
                       {isJustCompleted && (
-                        <div className="absolute inset-0 bg-emerald-400/40 rounded-full animate-ping" />
+                        <div className="absolute inset-0 bg-moxt-text-3/30 rounded-full animate-ping" />
                       )}
                     </div>
-                    <span className={`flex-1 text-xs transition-all ${
+                    <span className={`flex-1 text-12 transition-all ${
                       isJustCompleted
-                        ? 'text-emerald-700 font-semibold' :
+                        ? 'text-moxt-text-1 font-semibold' :
                       task.status === 'done'
-                        ? 'text-slate-400 line-through' :
+                        ? 'text-moxt-text-4 line-through' :
                       task.status === 'loading'
-                        ? 'text-slate-800 font-semibold' :
-                        'text-slate-600'
+                        ? 'text-moxt-text-1 font-semibold' :
+                        'text-moxt-text-2'
                     }`}>
                       {task.label}
                     </span>

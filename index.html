@@ -5,18 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Paraflow</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              moxt: {
+                'theme-bg': '#F8F9F7',
+                'fill-white': '#FFFFFF',
+                'fill-1': '#F5F6F4',
+                'fill-2': '#ECEEE9',
+                'fill-opacity-1': 'rgba(0,0,0,0.04)',
+                'fill-opacity-2': 'rgba(0,0,0,0.08)',
+                'text-1': '#1A1D1A',
+                'text-2': '#5C615C',
+                'text-3': '#8A8F8A',
+                'text-4': '#B8BCB8',
+                'line-1': '#E5E8E2',
+                'line-2': '#D8DBD5',
+                'brand-7': '#00BF4B',
+              },
+              brand: {
+                50: '#E6FFF0',
+                100: '#B3FFD6',
+                200: '#80FFBB',
+                300: '#4DFFA1',
+                400: '#1AFF86',
+                500: '#00BF4B',
+                600: '#00993C',
+                700: '#00732D',
+                800: '#004D1E',
+                900: '#00260F',
+              }
+            },
+            fontSize: {
+              '12': ['12px', { lineHeight: '1.4' }],
+              '13': ['13px', { lineHeight: '1.5' }],
+              '14': ['14px', { lineHeight: '1.5' }],
+              '16': ['16px', { lineHeight: '1.5' }],
+            },
+            spacing: {
+              '0.25': '1px',
+              '2.75': '11px',
+              '3.5': '14px',
+            }
+          }
+        }
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+      :root {
+        /* Moxt Color System */
+        --moxt-theme-bg: #F8F9F7;
+        --moxt-fill-white: #FFFFFF;
+        --moxt-fill-1: #F5F6F4;
+        --moxt-fill-2: #ECEEE9;
+        --moxt-fill-opacity-1: rgba(0,0,0,0.04);
+        --moxt-fill-opacity-2: rgba(0,0,0,0.08);
+        --moxt-text-1: #1A1D1A;
+        --moxt-text-2: #5C615C;
+        --moxt-text-3: #8A8F8A;
+        --moxt-text-4: #B8BCB8;
+        --moxt-line-1: #E5E8E2;
+        --moxt-line-2: #D8DBD5;
+        --moxt-brand-7: #00BF4B;
+      }
       body {
         font-family: 'Inter', sans-serif;
-        overflow: hidden; /* Prevent native scroll */
-        background-color: #f8fafc; /* Slate 50 */
-        color: #0f172a; /* Slate 900 */
+        overflow: hidden;
+        background-color: var(--moxt-theme-bg);
+        color: var(--moxt-text-1);
       }
       .font-mono {
         font-family: 'JetBrains Mono', monospace;
       }
-      /* Custom Scrollbar for internal elements */
+      /* Custom Scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -25,14 +89,14 @@
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
+        background: var(--moxt-line-1);
         border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
+        background: var(--moxt-text-4);
       }
       .canvas-grid {
-        background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+        background-image: radial-gradient(var(--moxt-line-1) 1px, transparent 1px);
         background-size: 20px 20px;
       }
     </style>

@@ -23,7 +23,7 @@ export const APINode: React.FC<APINodeProps> = ({ title, data, loading }) => {
 
   const methodColors: Record<string, string> = {
     GET: 'text-blue-600 bg-blue-50 border-blue-200',
-    POST: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+    POST: 'text-brand-600 bg-brand-50 border-brand-200',
     PUT: 'text-orange-600 bg-orange-50 border-orange-200',
     DELETE: 'text-red-600 bg-red-50 border-red-200',
     PATCH: 'text-yellow-600 bg-yellow-50 border-yellow-200',

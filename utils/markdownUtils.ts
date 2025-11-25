@@ -79,7 +79,7 @@ export const renderInlineStyles = (text: string) => {
         if (part.startsWith('`') && part.endsWith('`')) {
             return React.createElement('code', {
                 key: i,
-                className: "bg-slate-100 text-emerald-600 px-1.5 py-0.5 rounded text-sm font-mono"
+                className: "bg-slate-100 text-brand-600 px-1.5 py-0.5 rounded text-sm font-mono"
             }, part.slice(1, -1));
         }
         

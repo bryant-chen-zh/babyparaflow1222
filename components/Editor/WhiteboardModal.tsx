@@ -220,7 +220,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({ isOpen, title,
           <div className="flex items-center gap-2">
              <span className="text-slate-400 text-xs font-mono uppercase tracking-wider">Chart Editor</span>
           </div>
-          <button onClick={handleClose} className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-md flex items-center gap-2 shadow-md">
+          <button onClick={handleClose} className="px-4 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-md flex items-center gap-2 shadow-md">
               <Check size={14} /> Save & Close
           </button>
        </div>
@@ -278,7 +278,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({ isOpen, title,
 const ToolBtn = ({ icon: Icon, active, onClick }: { icon: any, active: boolean, onClick: () => void }) => (
     <button 
         onClick={onClick}
-        className={`p-2 rounded-lg transition-all ${active ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+        className={`p-2 rounded-lg transition-all ${active ? 'bg-brand-100 text-brand-700' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
     >
         <Icon size={20} />
     </button>

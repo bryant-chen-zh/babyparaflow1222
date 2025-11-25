@@ -34,7 +34,7 @@ export function ToolCallMessage({ toolCall }: ToolCallMessageProps) {
       case 'loading':
         return <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />;
       case 'success':
-        return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />;
+        return <CheckCircle2 className="w-3.5 h-3.5 text-brand-500" />;
       case 'error':
         return <XCircle className="w-3.5 h-3.5 text-red-500" />;
     }

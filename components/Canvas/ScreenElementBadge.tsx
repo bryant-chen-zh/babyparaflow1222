@@ -16,8 +16,8 @@ export const ScreenElementBadge: React.FC<ScreenElementBadgeProps> = ({
   color,
   onRemove
 }) => {
-  const bgColor = color === 'green' ? 'bg-emerald-500' : 'bg-blue-500';
-  const hoverBg = color === 'green' ? 'hover:bg-emerald-600' : 'hover:bg-blue-600';
+  const bgColor = color === 'green' ? 'bg-brand-500' : 'bg-blue-500';
+  const hoverBg = color === 'green' ? 'hover:bg-brand-600' : 'hover:bg-blue-600';
 
   return (
     <div

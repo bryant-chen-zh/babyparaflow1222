@@ -917,29 +917,50 @@ const App = () => {
     }));
   };
 
-  // 执行工作流（原 runSimulation 的核心逻辑）
+  // 添加 AI 消息的辅助函数
+  const addAIMessage = (content: string) => {
+    setMessages(prev => [...prev, {
+      id: `ai-${Date.now()}-${Math.random()}`,
+      type: 'ai',
+      role: 'ai',
+      content,
+      timestamp: Date.now()
+    }]);
+  };
+
+  // 模拟工具调用的辅助函数
+  const simulateToolCall = async (tool: 'grep' | 'read', filePath: string, delay: number = 400) => {
+    const msgId = addToolCallMessage(tool, tool === 'grep' ? 'Search Code' : 'Read File', filePath);
+    await new Promise(r => setTimeout(r, delay));
+    updateToolCallStatus(msgId, 'success');
+  };
+
+  // 执行工作流（增强版：穿插更多工具调用和 AI 消息）
   const executeWorkflow = async (planMsgId: string) => {
-    // --- PHASE 1: DOCUMENT ---
-    await new Promise(r => setTimeout(r, 800));
-    updatePlanStatus(planMsgId, 's1', 'loading');
-
-    // Add tool call simulation
-    const tool1 = addToolCallMessage('grep', 'Search Code', 'requirements.md');
-    await new Promise(r => setTimeout(r, 600));
-    updateToolCallStatus(tool1, 'success');
-
-    const tool2 = addToolCallMessage('read', 'Read File', 'package.json');
-    await new Promise(r => setTimeout(r, 600));
-    updateToolCallStatus(tool2, 'success');
-
-    // Pan Camera to Doc Section
     const cx = LAYOUT_CENTER_X;
     const cy = LAYOUT_CENTER_Y;
+
+    // ============================================
+    // PHASE 1: Drafting Product Strategy
+    // ============================================
+    await new Promise(r => setTimeout(r, 600));
+    updatePlanStatus(planMsgId, 's1', 'loading');
+    
+    addAIMessage("Analyzing your requirements and researching similar platforms...");
+    await new Promise(r => setTimeout(r, 500));
+
+    await simulateToolCall('grep', 'event management SaaS', 350);
+    await simulateToolCall('read', 'docs/product-templates.md', 300);
+
+    addAIMessage("Creating user personas and product charter based on community event patterns...");
+    await new Promise(r => setTimeout(r, 400));
+
+    // Pan Camera to Doc Section
     const docY = cy + DOCUMENT_SECTION_Y_OFFSET;
     panTo(cx, docY, 0.5);
 
     // Create Document Nodes (Loading)
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
     const docNodes: CanvasNode[] = [
       { id: 'node-doc-1', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X, y: docY, title: 'User Personas', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
       { id: 'node-doc-2', type: NodeType.DOCUMENT, x: cx, y: docY, title: 'Product Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
@@ -948,42 +969,65 @@ const App = () => {
     setNodes(prev => [...prev, ...docNodes]);
 
     // Reveal Doc Content
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1200));
     setNodes(prev => prev.map(n => {
         if (n.id === 'node-doc-1') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 };
         if (n.id === 'node-doc-2') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 };
         if (n.id === 'node-doc-3') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 };
         return n;
     }));
+
+    addAIMessage("Product strategy documents ready. Moving to user flow design...");
     updatePlanStatus(planMsgId, 's1', 'done');
 
-    // --- PHASE 2: CHART ---
-    await new Promise(r => setTimeout(r, 1000));
+    // ============================================
+    // PHASE 2: Designing User Flow
+    // ============================================
+    await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's2', 'loading');
+
+    addAIMessage("Mapping user journey based on your requirements...");
+    await new Promise(r => setTimeout(r, 400));
+
+    await simulateToolCall('grep', 'user flow patterns', 300);
+    await simulateToolCall('read', 'templates/flow-diagram.json', 350);
+
+    addAIMessage("Generating flow chart with key decision points and navigation paths...");
+    await new Promise(r => setTimeout(r, 400));
 
     const chartX = cx + CHART_SECTION_X_OFFSET;
     const chartY = cy - 300;
     panTo(chartX + 400, chartY + 300, 0.6);
 
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
     const chartNode: CanvasNode = {
         id: 'node-whiteboard-1', type: NodeType.WHITEBOARD, x: chartX, y: chartY, title: 'User Flow Chart', status: 'loading', data: null, sectionId: SECTION_IDS.CHART
     };
     setNodes(prev => [...prev, chartNode]);
 
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1200));
     setNodes(prev => prev.map(n => n.id === 'node-whiteboard-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.whiteboard } : n));
+
+    addAIMessage("User flow diagram complete. Now designing the UI screens...");
     updatePlanStatus(planMsgId, 's2', 'done');
 
-    // --- PHASE 3: PROTOTYPE ---
-    await new Promise(r => setTimeout(r, 1000));
+    // ============================================
+    // PHASE 3: Generating Prototype
+    // ============================================
+    await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's3', 'loading');
 
+    addAIMessage("Designing high-fidelity screens with Tailwind CSS...");
+    await new Promise(r => setTimeout(r, 400));
+
+    await simulateToolCall('read', 'design-system/colors.css', 300);
+    await simulateToolCall('grep', 'navigation component', 350);
+
     // Pan Camera to Screens (Center)
-    panTo(cx, cy + 400, 0.25); // Zoom out to see grid
+    panTo(cx, cy + 400, 0.25);
 
     // Create Skeleton Screens
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
     const sY1 = cy;
     const sY2 = cy + WEB_NODE_SPACING_Y;
     const sXStart = cx - WEB_NODE_SPACING_X;
@@ -1006,147 +1050,136 @@ const App = () => {
     ];
     setEdges(flowEdges);
 
-    // Reveal Screens Sequentially
+    addAIMessage("Building Home and Explore pages with hero sections and event grids...");
+    await new Promise(r => setTimeout(r, 400));
+
+    // Reveal first batch of screens
     const revealScreen = async (id: string, data: any) => {
-        await new Promise(r => setTimeout(r, 600));
+        await new Promise(r => setTimeout(r, 500));
         setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
     };
 
     await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1);
     await revealScreen('node-screen-2', MOCK_LUMA_DATA.screen2);
+
+    await simulateToolCall('read', 'templates/form-patterns.tsx', 300);
+
+    addAIMessage("Creating Event Detail, form screens, and user profile...");
+    await new Promise(r => setTimeout(r, 400));
+
     await revealScreen('node-screen-3', MOCK_LUMA_DATA.screen3);
     await revealScreen('node-screen-4', MOCK_LUMA_DATA.screen4);
     await revealScreen('node-screen-5', MOCK_LUMA_DATA.screen5);
 
+    addAIMessage("All screens connected with navigation flow. Moving to backend architecture...");
     updatePlanStatus(planMsgId, 's3', 'done');
 
-    // --- PHASE 4: BACKEND PLANNING (Documents) ---
-    await new Promise(r => setTimeout(r, 1500));
+    // ============================================
+    // PHASE 4: Planning Backend Architecture
+    // ============================================
+    await new Promise(r => setTimeout(r, 1000));
     updatePlanStatus(planMsgId, 's4', 'loading');
+
+    addAIMessage("Designing system architecture for scalability...");
+    await new Promise(r => setTimeout(r, 400));
+
+    await simulateToolCall('grep', 'RESTful API patterns', 350);
+    await simulateToolCall('read', 'docs/architecture-guide.md', 300);
 
     // Pan to backend documents area
     panTo(cx + 2800, cy - 100, 0.4);
 
-    // 4.1 Define backend region layout
+    addAIMessage("Documenting tech stack and data flow...");
+    await new Promise(r => setTimeout(r, 400));
+
+    // Define backend region layout
     const backendBaseX = cx + BACKEND_SECTION_X_OFFSET;
     const backendBaseY = cy + BACKEND_SECTION_Y_OFFSET;
-
-    // 4.2 Create Backend Planning Documents (Loading)
     const backendDocX = backendBaseX;
     const backendDocY = backendBaseY;
     const backendDocSpacing = 500;
 
     const backendDocNodes: CanvasNode[] = [
-      {
-        id: 'node-doc-dev-plan',
-        type: NodeType.DOCUMENT,
-        x: backendDocX,
-        y: backendDocY,
-        title: 'Development Plan',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
-        data: null
-      },
-      {
-        id: 'node-doc-tech-stack',
-        type: NodeType.DOCUMENT,
-        x: backendDocX + backendDocSpacing,
-        y: backendDocY,
-        title: 'Tech Stack',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
-        data: null
-      },
-      {
-        id: 'node-doc-architecture',
-        type: NodeType.DOCUMENT,
-        x: backendDocX,
-        y: backendDocY + 600,
-        title: 'Architecture Design',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
-        data: null
-      },
-      {
-        id: 'node-doc-data-model',
-        type: NodeType.DOCUMENT,
-        x: backendDocX + backendDocSpacing,
-        y: backendDocY + 600,
-        title: 'Data Model',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
-        data: null
-      }
+      { id: 'node-doc-dev-plan', type: NodeType.DOCUMENT, x: backendDocX, y: backendDocY, title: 'Development Plan', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
+      { id: 'node-doc-tech-stack', type: NodeType.DOCUMENT, x: backendDocX + backendDocSpacing, y: backendDocY, title: 'Tech Stack', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
+      { id: 'node-doc-architecture', type: NodeType.DOCUMENT, x: backendDocX, y: backendDocY + 600, title: 'Architecture Design', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
+      { id: 'node-doc-data-model', type: NodeType.DOCUMENT, x: backendDocX + backendDocSpacing, y: backendDocY + 600, title: 'Data Model', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null }
     ];
 
     setNodes(prev => [...prev, ...backendDocNodes]);
 
     // Reveal Backend Documents
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1200));
     setNodes(prev => prev.map(n => {
       if (n.id === 'node-doc-dev-plan') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDevPlan };
       if (n.id === 'node-doc-tech-stack') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docTechStack };
       if (n.id === 'node-doc-architecture') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docArchitecture };
       if (n.id === 'node-doc-data-model') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDataModel };
-        return n;
+      return n;
     }));
 
+    addAIMessage("Architecture documentation complete. Now designing database schemas...");
     updatePlanStatus(planMsgId, 's4', 'done');
 
-    // --- PHASE 5: BACKEND RESOURCES (Database & Tasks) ---
-    await new Promise(r => setTimeout(r, 1500));
+    // ============================================
+    // PHASE 5: Designing Data & Resources
+    // ============================================
+    await new Promise(r => setTimeout(r, 1000));
     updatePlanStatus(planMsgId, 's5', 'loading');
+
+    addAIMessage("Modeling database schemas for PostgreSQL...");
+    await new Promise(r => setTimeout(r, 400));
+
+    await simulateToolCall('read', 'schemas/postgres-types.sql', 300);
+    await simulateToolCall('grep', 'foreign key constraints', 350);
 
     // Pan to database area
     panTo(cx + 2750, cy + 300, 0.4);
 
-    // 5.1 Create Database nodes
+    addAIMessage("Creating Users and Events tables with relationships...");
+    await new Promise(r => setTimeout(r, 400));
+
+    // Create Database nodes
     const dbY = backendDocY + 1300;
     const dbSpacingX = 350;
 
     const databaseNodes: CanvasNode[] = [
-      {
-        id: 'node-table-users',
-        type: NodeType.TABLE,
-        x: backendBaseX + 100,
-        y: dbY,
-        title: 'Users',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
-        data: MOCK_LUMA_DATA.tableUsers
-      },
-      {
-        id: 'node-table-events',
-        type: NodeType.TABLE,
-        x: backendBaseX + 100 + dbSpacingX,
-        y: dbY,
-        title: 'Events',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
-        data: MOCK_LUMA_DATA.tableEvents
-      }
+      { id: 'node-table-users', type: NodeType.TABLE, x: backendBaseX + 100, y: dbY, title: 'Users', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: MOCK_LUMA_DATA.tableUsers },
+      { id: 'node-table-events', type: NodeType.TABLE, x: backendBaseX + 100 + dbSpacingX, y: dbY, title: 'Events', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: MOCK_LUMA_DATA.tableEvents }
     ];
 
     setNodes(prev => [...prev, ...databaseNodes]);
 
     // Reveal database nodes
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
     setNodes(prev => prev.map(n =>
       n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.TABLE
         ? { ...n, status: 'done' }
         : n
     ));
 
+    addAIMessage("Database models defined. Setting up third-party integrations...");
     updatePlanStatus(planMsgId, 's5', 'done');
 
-    // --- PHASE 6: THIRD-PARTY INTEGRATION ---
-    await new Promise(r => setTimeout(r, 1000));
+    // ============================================
+    // PHASE 6: Integrating Third-party Services
+    // ============================================
+    await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's6', 'loading');
+
+    addAIMessage("Configuring external service integrations...");
+    await new Promise(r => setTimeout(r, 400));
+
+    await simulateToolCall('grep', 'SendGrid API', 300);
+    await simulateToolCall('read', 'config/services.json', 350);
 
     // Pan to integration area
     panTo(cx + 2700, cy + 600, 0.35);
 
-    // 6.1 Create Integration nodes (below databases)
+    addAIMessage("Setting up email notifications and calendar sync...");
+    await new Promise(r => setTimeout(r, 400));
+
+    // Create Integration nodes (below databases)
     const integrationX = backendBaseX + 100;
     const integrationY = dbY + 400;
 
@@ -1190,27 +1223,24 @@ const App = () => {
     setNodes(prev => [...prev, ...integrationNodes]);
 
     // Gradually reveal integrations
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
     setNodes(prev => prev.map(n =>
       n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.INTEGRATION
         ? { ...n, status: 'done' }
         : n
     ));
 
+    addAIMessage("All integrations configured successfully.");
     updatePlanStatus(planMsgId, 's6', 'done');
 
-    // Final zoom out to see global view
-    await new Promise(r => setTimeout(r, 800));
+    // ============================================
+    // Final Summary
+    // ============================================
+    await new Promise(r => setTimeout(r, 600));
     panTo(cx + 1000, cy, 0.16);
 
     setIsProcessing(false);
-    setMessages(prev => [...prev, {
-      id: 'final',
-      type: 'ai',
-      role: 'ai',
-      content: "Complete! You now have a full-stack prototype with backend infrastructure, task breakdown, and third-party integrations mapped out. You can manually adjust connections and add more resources as needed.",
-      timestamp: Date.now()
-    }]);
+    addAIMessage("Complete! Your full-stack prototype is ready with:\n• 3 Product Strategy Documents\n• User Flow Diagram\n• 5 High-fidelity UI Screens\n• Backend Architecture & Data Models\n• Database Schemas\n• Third-party Integrations\n\nYou can click on any node to edit, or use the toolbar to add more resources.");
   };
 
   // --- Standard Handlers ---
@@ -1422,7 +1452,7 @@ const App = () => {
   }, [isCanvasSelectionMode]);
 
   return (
-    <div className="flex w-full h-screen bg-slate-50 overflow-hidden">
+    <div className="flex w-full h-screen bg-moxt-theme-bg overflow-hidden">
       <ChatSidebar
         messages={messages}
         onSendMessage={handleSendMessage}
