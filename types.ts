@@ -137,7 +137,7 @@ export interface QuestionOption {
   description?: string;
 }
 
-// Question message data
+// Question message data (支持单题和多题模式)
 export interface QuestionData {
   questionId: string;
   questionText: string;
@@ -146,6 +146,9 @@ export interface QuestionData {
   totalPages: number;
   selectedOptionId?: string;
   answered?: boolean;
+  // 多题模式：传递所有问题
+  allQuestions?: QuestionData[];
+  currentIndex?: number;
 }
 
 // Extended message types
@@ -161,6 +164,7 @@ export interface ChatMessage {
   toolCall?: ToolCallData;     // Tool call data
   question?: QuestionData;     // Question data
   executionStarted?: boolean;  // Whether "Start Execution" has been clicked
+  collapsed?: boolean;         // Whether the question card is collapsed
 }
 
 export interface CanvasView {

@@ -788,9 +788,13 @@ const App = () => {
       }]);
       setIsProcessing(false);
 
-      // 3. 显示问题容器（单个容器，稍后会更新问题内容）
+      // 3. 显示问题容器（包含所有问题，一次性加载）
       await new Promise(r => setTimeout(r, 800));
-      const firstQuestion = PRODUCT_QUESTIONS[0];
+      const firstQuestion = {
+        ...PRODUCT_QUESTIONS[0],
+        allQuestions: PRODUCT_QUESTIONS, // 传递所有问题
+        currentIndex: 0
+      };
       setMessages(prev => [...prev, {
         id: 'question-container',  // 固定 ID，用于更新问题
         type: 'question',
@@ -829,74 +833,44 @@ const App = () => {
 
   // --- 问题处理函数 ---
   const handleAnswerQuestion = (messageId: string, optionId: string) => {
-    setMessages(prev => prev.map(msg => {
-      if (msg.id === messageId && msg.question) {
-        return {
-          ...msg,
-          question: { ...msg.question, selectedOptionId: optionId }
-        };
-      }
-      return msg;
-    }));
-
-    // 记录答案
-    const question = messages.find(m => m.id === messageId)?.question;
-    if (question) {
-      setSelectedAnswers(prev => ({ ...prev, [question.questionId]: optionId }));
-    }
+    // 组件内部已经管理答案状态，这里只需记录到全局状态（如果需要）
+    // 暂时保持简单，因为答案在组件内部管理
   };
 
   const handleContinueQuestion = async (messageId: string) => {
-    // Wait for animation
-    await new Promise(r => setTimeout(r, 300));
+    // 用户点击 Continue，提交所有已回答的问题
+    // 将问题容器标记为折叠状态，而不是移除
+    setQuestionsCompleted(true);
+    setMessages(prev => prev.map(msg =>
+      msg.id === 'question-container' ? { ...msg, collapsed: true } : msg
+    ));
 
-    if (currentQuestionIndex < PRODUCT_QUESTIONS.length - 1) {
-      const nextIndex = currentQuestionIndex + 1;
-      setCurrentQuestionIndex(nextIndex);
+    // 添加 AI 确认消息和执行计划
+    await new Promise(r => setTimeout(r, 500));
 
-      // 更新同一个问题容器为下一题（不添加新消息）
-      const nextQuestion = PRODUCT_QUESTIONS[nextIndex];
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === 'question-container') {
-          return {
-            ...msg,
-            question: nextQuestion  // 更新问题内容
-          };
-        }
-        return msg;
-      }));
-    } else {
-      // 所有问题回答完毕，移除问题容器
-      setQuestionsCompleted(true);
-      setMessages(prev => prev.filter(msg => msg.id !== 'question-container'));
+    const planMsgId = 'ai-plan';
+    const initialSteps: PlanStep[] = [
+      { id: 's1', label: 'Drafting Product Strategy', status: 'pending' },
+      { id: 's2', label: 'Designing User Flow', status: 'pending' },
+      { id: 's3', label: 'Generating Prototype', status: 'pending' },
+      { id: 's4', label: 'Planning Backend Architecture', status: 'pending' },
+      { id: 's5', label: 'Designing Data & Resources', status: 'pending' },
+      { id: 's6', label: 'Integrating Third-party Services', status: 'pending' },
+    ];
 
-      // 添加 AI 确认消息和执行计划
-      await new Promise(r => setTimeout(r, 500));
-
-      const planMsgId = 'ai-plan';
-      const initialSteps: PlanStep[] = [
-        { id: 's1', label: 'Drafting Product Strategy', status: 'pending' },
-        { id: 's2', label: 'Designing User Flow', status: 'pending' },
-        { id: 's3', label: 'Generating Prototype', status: 'pending' },
-        { id: 's4', label: 'Planning Backend Architecture', status: 'pending' },
-        { id: 's5', label: 'Designing Data & Resources', status: 'pending' },
-        { id: 's6', label: 'Integrating Third-party Services', status: 'pending' },
-      ];
-
-      setMessages(prev => [...prev, {
-        id: planMsgId,
-        type: 'ai',
-        role: 'ai',
-        content: "Got it! Based on your requirements, here's my execution plan:",
-        timestamp: Date.now(),
-        plan: initialSteps,
-        executionStarted: false
-      }]);
-    }
+    setMessages(prev => [...prev, {
+      id: planMsgId,
+      type: 'ai',
+      role: 'ai',
+      content: "Got it! Based on your requirements, here's my execution plan:",
+      timestamp: Date.now(),
+      plan: initialSteps,
+      executionStarted: false
+    }]);
   };
 
   const handleSkipQuestion = async (messageId: string) => {
-    // 跳过当前问题，使用默认值
+    // 跳过所有问题，直接进入执行计划
     handleContinueQuestion(messageId);
   };
 

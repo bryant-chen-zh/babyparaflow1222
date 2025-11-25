@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play } from 'lucide-react';
+import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play } from 'lucide-react';
 import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
 import { ToolCallMessage } from './ToolCallMessage';
 import { QuestionCard } from './QuestionCard';
@@ -387,6 +387,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
                 onSkip={() => onSkipQuestion?.(msg.id)}
                 onContinue={() => onContinueQuestion?.(msg.id)}
+                collapsed={msg.collapsed}
               />
             );
           }
@@ -395,23 +396,22 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           return (
             <div
               key={msg.id}
-              className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
-                msg.role === 'user' ? 'bg-white border border-slate-200' : 'bg-emerald-600'
-              }`}>
-                {msg.role === 'user' ? <User size={14} className="text-slate-600" /> : <Bot size={14} className="text-white" />}
-              </div>
-              <div className="flex flex-col gap-2 max-w-[80%]">
+              <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'max-w-[80%]' : 'w-full'}`}>
                   {/* Text Content */}
                   {msg.content && (
-                      <div className={`p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                      msg.role === 'user'
-                          ? 'bg-slate-100 text-slate-800 rounded-tr-none border border-slate-200'
-                          : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none shadow-sm'
-                      }`}>
-                      {renderMessageContent(msg.content)}
-                      </div>
+                      msg.role === 'user' ? (
+                        // User message - keep bubble
+                        <div className="p-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-slate-100 text-slate-800 rounded-tr-none border border-slate-200">
+                          {renderMessageContent(msg.content)}
+                        </div>
+                      ) : (
+                        // AI message - remove bubble, plain text only
+                        <div className="text-sm leading-relaxed text-slate-700">
+                          {renderMessageContent(msg.content)}
+                        </div>
+                      )
                   )}
 
                   {/* Plan/Steps Renderer */}
@@ -449,11 +449,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           );
         })}
         {isProcessing && (
-            <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center shrink-0 animate-pulse shadow-sm">
-                    <Bot size={14} className="text-white" />
-                </div>
-                <div className="text-slate-400 text-xs flex items-center gap-1 pt-2">
+            <div className="flex justify-start">
+                <div className="text-slate-400 text-xs flex items-center gap-1">
                     Thinking <span className="animate-bounce">.</span><span className="animate-bounce delay-100">.</span><span className="animate-bounce delay-200">.</span>
                 </div>
             </div>

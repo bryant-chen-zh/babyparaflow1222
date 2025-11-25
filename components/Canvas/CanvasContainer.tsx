@@ -200,6 +200,10 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
   const [ghostBox, setGhostBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
 
+  // RAF refs for smooth animation
+  const rafRef = useRef<number>();
+  const lastFrameTimeRef = useRef<number>(0);
+
   // Section Metadata State
   const [sectionSettings, setSectionSettings] = useState<Record<string, { title: string, theme: SectionTheme }>>({
       [SECTION_IDS.DOCUMENT]: { title: 'Documents & Specs', theme: 'blue' },
@@ -325,6 +329,15 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     };
   }, [view, selectedNodeIds]);
 
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
   const effectiveTool = isSpacePressed ? 'HAND' : activeTool;
 
   // Handle Mouse Events
@@ -422,75 +435,87 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    const currentPos = getCanvasCoords(e.clientX, e.clientY);
+    // Cancel any pending RAF
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
 
-    // Drawing
-    if (isDrawing && ghostBox) {
-        const w = currentPos.x - drawStart.x;
-        const h = currentPos.y - drawStart.y;
-        setGhostBox({
-            x: w < 0 ? currentPos.x : drawStart.x,
-            y: h < 0 ? currentPos.y : drawStart.y,
-            w: Math.abs(w),
-            h: Math.abs(h)
-        });
+    // Store event properties (React events are pooled)
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    // Use RAF to sync with browser refresh rate
+    rafRef.current = requestAnimationFrame(() => {
+      const currentPos = getCanvasCoords(clientX, clientY);
+
+      // Drawing
+      if (isDrawing && ghostBox) {
+          const w = currentPos.x - drawStart.x;
+          const h = currentPos.y - drawStart.y;
+          setGhostBox({
+              x: w < 0 ? currentPos.x : drawStart.x,
+              y: h < 0 ? currentPos.y : drawStart.y,
+              w: Math.abs(w),
+              h: Math.abs(h)
+          });
+          return;
+      }
+
+      // Panning
+      if (isDraggingCanvas) {
+        const dx = clientX - lastMousePos.x;
+        const dy = clientY - lastMousePos.y;
+        onViewChange({ ...view, x: view.x + dx, y: view.y + dy });
+        setLastMousePos({ x: clientX, y: clientY });
         return;
-    }
+      }
 
-    // Panning
-    if (isDraggingCanvas) {
-      const dx = e.clientX - lastMousePos.x;
-      const dy = e.clientY - lastMousePos.y;
-      onViewChange({ ...view, x: view.x + dx, y: view.y + dy });
-      setLastMousePos({ x: e.clientX, y: e.clientY });
-      return;
-    }
+      // Dragging nodes
+      if (draggedNodeId) {
+          const draggedNode = nodes.find(n => n.id === draggedNodeId);
+          if (!draggedNode) return;
 
-    // Dragging nodes
-    if (draggedNodeId) {
-        const draggedNode = nodes.find(n => n.id === draggedNodeId);
-        if (!draggedNode) return;
+          // If dragged node is in selection, move all selected nodes
+          if (selectedNodeIds.includes(draggedNodeId) && selectedNodeIds.length > 1) {
+              // Batch move all selected nodes
+              const newX = currentPos.x - dragOffset.x;
+              const newY = currentPos.y - dragOffset.y;
+              const dx = newX - draggedNode.x;
+              const dy = newY - draggedNode.y;
 
-        // If dragged node is in selection, move all selected nodes
-        if (selectedNodeIds.includes(draggedNodeId) && selectedNodeIds.length > 1) {
-            // Batch move all selected nodes
-            const newX = currentPos.x - dragOffset.x;
-            const newY = currentPos.y - dragOffset.y;
-            const dx = newX - draggedNode.x;
-            const dy = newY - draggedNode.y;
+              const updates = selectedNodeIds.map(id => ({
+                  id,
+                  dx,
+                  dy
+              }));
+              onBatchNodeMove(updates);
+          } else {
+              // Single node move
+              onNodeMove(draggedNodeId, currentPos.x - dragOffset.x, currentPos.y - dragOffset.y);
+          }
+      }
 
-            const updates = selectedNodeIds.map(id => ({
-                id,
-                dx,
-                dy
-            }));
-            onBatchNodeMove(updates);
-        } else {
-            // Single node move
-            onNodeMove(draggedNodeId, currentPos.x - dragOffset.x, currentPos.y - dragOffset.y);
-        }
-    }
+      if (draggedSectionId) {
+          const dx = currentPos.x - dragOffset.x;
+          const dy = currentPos.y - dragOffset.y;
 
-    if (draggedSectionId) {
-        const dx = currentPos.x - dragOffset.x;
-        const dy = currentPos.y - dragOffset.y;
-        
-        if (dx !== 0 || dy !== 0) {
-            // Check if manual section
-            const manualSec = manualSections.find(s => s.id === draggedSectionId);
-            if (manualSec) {
-                setManualSections(prev => prev.map(s => s.id === draggedSectionId ? { ...s, x: s.x + dx, y: s.y + dy } : s));
-            } else {
-                // Auto section - move all nodes in it
-                const sectionNodes = nodes.filter(n => n.sectionId === draggedSectionId);
-                if (sectionNodes.length > 0) {
-                    const updates = sectionNodes.map(n => ({ id: n.id, dx, dy }));
-                    onBatchNodeMove(updates);
-                }
-            }
-            setDragOffset({ x: currentPos.x, y: currentPos.y });
-        }
-    }
+          if (dx !== 0 || dy !== 0) {
+              // Check if manual section
+              const manualSec = manualSections.find(s => s.id === draggedSectionId);
+              if (manualSec) {
+                  setManualSections(prev => prev.map(s => s.id === draggedSectionId ? { ...s, x: s.x + dx, y: s.y + dy } : s));
+              } else {
+                  // Auto section - move all nodes in it
+                  const sectionNodes = nodes.filter(n => n.sectionId === draggedSectionId);
+                  if (sectionNodes.length > 0) {
+                      const updates = sectionNodes.map(n => ({ id: n.id, dx, dy }));
+                      onBatchNodeMove(updates);
+                  }
+              }
+              setDragOffset({ x: currentPos.x, y: currentPos.y });
+          }
+      }
+    });
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
@@ -690,9 +715,13 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
     >
-      <div 
-        className="absolute top-0 left-0 w-full h-full origin-top-left pointer-events-none transition-transform duration-700 ease-in-out"
-        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
+      <div
+        className={`absolute top-0 left-0 w-full h-full origin-top-left pointer-events-none ${!isDraggingCanvas ? 'transition-transform duration-700 ease-in-out' : ''}`}
+        style={{
+          transform: `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`,
+          willChange: isDraggingCanvas ? 'transform' : 'auto',
+          backfaceVisibility: 'hidden'
+        }}
       >
         <div className="pointer-events-auto relative w-full h-full">
             
@@ -774,7 +803,8 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 <div
                     key={node.id}
                     data-id={node.id}
-                    className={`canvas-node absolute shadow-sm transition-all duration-200 rounded-2xl bg-white
+                    className={`canvas-node absolute shadow-sm rounded-2xl bg-white
+                        ${!isDragging ? 'transition-all duration-200' : ''}
                         ${node.type === NodeType.SCREEN || isMentioned ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
                         ${isHovered ? 'ring-4 ring-emerald-500/50 shadow-xl' : ''}
                         ${isHoveredInSelectionMode ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}
@@ -783,7 +813,13 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         ${isDragging ? 'scale-[1.02] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
                     `}
-                    style={{ left: node.x, top: node.y, width: dims.width, height: dims.height }}
+                    style={{
+                        left: node.x,
+                        top: node.y,
+                        width: dims.width,
+                        height: dims.height,
+                        willChange: isDragging ? 'transform' : 'auto'
+                    }}
                     onMouseEnter={() => setHoveredNodeId(node.id)}
                     onMouseLeave={() => setHoveredNodeId(null)}
                 >

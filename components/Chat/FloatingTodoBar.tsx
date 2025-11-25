@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
 import { PlanStep } from '../../types';
 
@@ -9,6 +9,33 @@ interface FloatingTodoBarProps {
 
 export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
+  const prevPlanRef = useRef<PlanStep[] | null>(null);
+
+  // Detect when a task completes and trigger celebration animation
+  useEffect(() => {
+    if (!plan || !prevPlanRef.current) {
+      prevPlanRef.current = plan;
+      return;
+    }
+
+    // Find tasks that just changed from loading to done
+    const prevPlan = prevPlanRef.current;
+    const newlyCompleted = plan.find((task, idx) => {
+      const prevTask = prevPlan[idx];
+      return prevTask && prevTask.status === 'loading' && task.status === 'done';
+    });
+
+    if (newlyCompleted) {
+      setJustCompletedId(newlyCompleted.id);
+      // Clear the animation after 800ms
+      setTimeout(() => {
+        setJustCompletedId(null);
+      }, 800);
+    }
+
+    prevPlanRef.current = plan;
+  }, [plan]);
 
   if (!plan || plan.length === 0) return null;
 
@@ -37,30 +64,41 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
 
   const allCompleted = completedCount === totalCount;
 
+  // Check if the task shown in header is just completed
+  const isHeaderTaskJustCompleted = currentTask?.id === justCompletedId;
+
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden mb-3">
         {/* Header - always visible */}
         <button
           onClick={handleToggle}
-          className="w-full px-3 py-3 flex items-start gap-3 hover:bg-slate-50/50 transition-colors group"
+          className={`w-full px-3 py-3 flex items-start gap-3 hover:bg-slate-50/50 transition-all group ${
+            isHeaderTaskJustCompleted ? 'bg-emerald-50/60' : ''
+          }`}
         >
           {/* Current task icon */}
           <div className="relative flex-shrink-0 pt-0.5">
-            {currentTask && getStatusIcon(currentTask.status)}
-            {currentTask?.status === 'loading' && (
+            {allCompleted ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 fill-emerald-600/20" />
+            ) : (
+              currentTask && getStatusIcon(currentTask.status)
+            )}
+            {(currentTask?.status === 'loading' || isHeaderTaskJustCompleted) && (
               <div className="absolute inset-0 bg-emerald-400/30 rounded-full animate-ping" />
             )}
           </div>
 
           {/* Task info */}
           <div className="flex-1 text-left min-w-0">
-            <div className={`text-sm font-semibold ${
+            <div className={`text-sm font-semibold transition-colors ${
+              isHeaderTaskJustCompleted ? 'text-emerald-600' :
               allCompleted ? 'text-emerald-600' : 'text-slate-800'
             }`}>
-              {currentTask ? currentTask.label : '✓ All tasks completed'}
+              {currentTask ? currentTask.label : 'All tasks completed'}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              {allCompleted ? 'Execution complete' : 'Processing...'}
+              {isHeaderTaskJustCompleted ? '✓ Completed!' :
+               allCompleted ? 'Execution complete' : 'Processing...'}
             </div>
           </div>
 
@@ -83,31 +121,41 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
         {isExpanded && (
           <div className="border-t border-slate-100">
             <div className="px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
-              {plan.map((task, index) => (
-                <div
-                  key={task.id}
-                  className={`flex items-start gap-3 px-2 py-2 rounded-xl transition-all ${
-                    task.status === 'loading'
-                      ? 'bg-emerald-50/80' :
-                    task.status === 'done'
-                      ? 'bg-slate-50/50' :
-                      'hover:bg-slate-50/50'
-                  }`}
-                >
-                  <div className="pt-0.5 flex-shrink-0">
-                    {getStatusIcon(task.status)}
+              {plan.map((task, index) => {
+                const isJustCompleted = task.id === justCompletedId;
+                return (
+                  <div
+                    key={task.id}
+                    className={`flex items-start gap-3 px-2 py-2 rounded-xl transition-all ${
+                      isJustCompleted
+                        ? 'bg-emerald-100 scale-105 shadow-sm' :
+                      task.status === 'loading'
+                        ? 'bg-emerald-50/80' :
+                      task.status === 'done'
+                        ? 'bg-slate-50/50' :
+                        'hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="pt-0.5 flex-shrink-0 relative">
+                      {getStatusIcon(task.status)}
+                      {isJustCompleted && (
+                        <div className="absolute inset-0 bg-emerald-400/40 rounded-full animate-ping" />
+                      )}
+                    </div>
+                    <span className={`flex-1 text-xs transition-all ${
+                      isJustCompleted
+                        ? 'text-emerald-700 font-semibold' :
+                      task.status === 'done'
+                        ? 'text-slate-400 line-through' :
+                      task.status === 'loading'
+                        ? 'text-slate-800 font-semibold' :
+                        'text-slate-600'
+                    }`}>
+                      {task.label}
+                    </span>
                   </div>
-                  <span className={`flex-1 text-xs transition-all ${
-                    task.status === 'done'
-                      ? 'text-slate-400 line-through' :
-                    task.status === 'loading'
-                      ? 'text-slate-800 font-semibold' :
-                      'text-slate-600'
-                  }`}>
-                    {task.label}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
