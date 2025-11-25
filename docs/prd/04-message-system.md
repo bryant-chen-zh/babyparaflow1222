@@ -61,9 +61,17 @@ export interface ChatMessage {
 **特性**：
 - 单选题形式，A/B/C/D 选项标签
 - 选择后自动前进到下一题（300ms 延迟显示选中效果）
-- 白色/绿色主题配色
+- 使用 moxt-* 主题色系，选中状态为灰色 (`bg-moxt-fill-2`)
+- 紧凑布局：`maxHeight: 40vh`
 - 使用单个固定容器 ID `'question-container'` 在原地更新问题
-- 完成后移除问题容器，开始执行工作流
+- 完成后折叠显示答案摘要，格式：`Question 1/5: [Answer]`
+
+**视觉设计**：
+- 圆角：`rounded-lg`
+- 边框：`border-moxt-line-1`
+- Header icon：`HelpCircle` 使用主题色 `text-moxt-brand-7`
+- 字号：标题 `text-13`，选项 `text-12`
+- 选中状态：`bg-moxt-fill-2 border-moxt-line-2`（中性灰色）
 
 **实现组件**: `QuestionCard.tsx`
 
@@ -95,36 +103,36 @@ export interface ChatMessage {
 - 位置：Chat 面板输入框正上方
 - 布局：左侧 icon + 中间 title/description + 右侧计数器和展开按钮
 - 宽度：与输入框一致
-- 内边距：`px-3 py-3`（紧凑设计）
+- 内边距：`px-3 py-2.5`（紧凑设计）
 
 ### 视觉设计
-- 圆角：`rounded-2xl`
-- 阴影：`shadow-lg`
-- 边框：`border border-slate-200/60`
-- 背景：白色
+- 圆角：`rounded-lg`
+- 阴影：`shadow-md`
+- 边框：`border border-moxt-line-1`
+- 背景：`bg-moxt-fill-white`
 
 ### 功能
 **收起状态**：
-- 显示当前执行任务的标题
+- 显示当前执行任务的标题（黑色文字 `text-moxt-text-1`）
 - 显示任务状态（"Processing..." 或 "Execution complete"）
-- 显示进度计数（X / Y）
+- 显示进度计数（X/Y）
 - loading 图标带动画 pulse 效果
 
 **展开状态**：
 - 列出所有任务及其状态
-- pending: 灰色圆圈图标
-- loading: 绿色旋转加载图标，淡绿色背景
-- done: 绿色勾选图标，文字删除线
+- pending: 灰色圆圈图标 (`text-moxt-text-4`)
+- loading: 灰色旋转加载图标 (`text-moxt-text-2`)，淡灰背景
+- done: 主题色勾选图标 (`text-moxt-brand-7`)，文字删除线
 
 ### 字体规范
-- 标题：`text-sm` (与输入框一致)
-- 描述文字：`text-xs`
-- 进度计数：`text-xs`
-- 列表项文字：`text-xs`
+- 标题：`text-13` (13px)
+- 描述文字：`text-12` (12px)
+- 进度计数：`text-12`
+- 列表项文字：`text-12`
 
 ### 对齐方式
 - 主容器：`items-start` (顶部对齐)
-- Icon：添加 `pt-0.5` 微调对齐
+- Icon：添加 `pt-0.5` 微调对齐，使用 `size={14}` 统一尺寸
 - 文字内容：左对齐
 
 **实现组件**: `FloatingTodoBar.tsx`

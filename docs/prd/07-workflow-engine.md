@@ -24,11 +24,16 @@
 ## 6-Act Workflow
 
 ### Act 1: 产品策略 (Product Strategy)
-**时长**：~3 秒  
+**时长**：~4 秒  
 **操作**：
-1. 平移摄像机到文档区域
-2. 创建 3 个 Document 节点（loading 状态）
-3. 1.5 秒后填充内容（done 状态）
+1. AI 消息："Analyzing your requirements and researching similar platforms..."
+2. 工具调用：`grep` → "event management SaaS"
+3. 工具调用：`read` → "docs/product-templates.md"
+4. AI 消息："Creating user personas and product charter..."
+5. 平移摄像机到文档区域
+6. 创建 3 个 Document 节点（loading 状态）
+7. 1.2 秒后填充内容（done 状态）
+8. AI 消息："Product strategy documents ready."
 
 **生成内容**：
 - User Personas
@@ -41,11 +46,16 @@ panTo(cx, cy + DOCUMENT_SECTION_Y_OFFSET, 0.5);
 ```
 
 ### Act 2: 用户流程 (User Flow)
-**时长**：~2.5 秒  
+**时长**：~3.5 秒  
 **操作**：
-1. 平移摄像机到流程图区域
-2. 创建 1 个 Whiteboard 节点（loading）
-3. 1.5 秒后显示流程图
+1. AI 消息："Mapping user journey based on your requirements..."
+2. 工具调用：`grep` → "user flow patterns"
+3. 工具调用：`read` → "templates/flow-diagram.json"
+4. AI 消息："Generating flow chart with key decision points..."
+5. 平移摄像机到流程图区域
+6. 创建 1 个 Whiteboard 节点（loading）
+7. 1.2 秒后显示流程图
+8. AI 消息："User flow diagram complete."
 
 **生成内容**：
 - User Flow Chart（包含圆形、矩形、菱形、箭头）
@@ -56,12 +66,20 @@ panTo(cx + CHART_SECTION_X_OFFSET + 400, cy - 300 + 300, 0.6);
 ```
 
 ### Act 3: 前端原型 (Frontend Prototype)
-**时长**：~4 秒  
+**时长**：~6 秒  
 **操作**：
-1. 缩小视角看到整个 Screen 区域
-2. 创建 5 个 Screen 节点骨架
-3. 创建 4 条边（Screen 之间的导航关系）
-4. 逐个显示 Screen 内容（每个间隔 600ms）
+1. AI 消息："Designing high-fidelity screens with Tailwind CSS..."
+2. 工具调用：`read` → "design-system/colors.css"
+3. 工具调用：`grep` → "navigation component"
+4. 缩小视角看到整个 Screen 区域
+5. 创建 5 个 Screen 节点骨架
+6. 创建 4 条边（Screen 之间的导航关系）
+7. AI 消息："Building Home and Explore pages..."
+8. 显示 Screen 1-2
+9. 工具调用：`read` → "templates/form-patterns.tsx"
+10. AI 消息："Creating Event Detail and form screens..."
+11. 显示 Screen 3-5
+12. AI 消息："All screens connected with navigation flow."
 
 **生成内容**：
 - Home Screen
@@ -76,11 +94,16 @@ panTo(cx, cy + 400, 0.25);  // 缩小看全局
 ```
 
 ### Act 4: 后端规划 (Backend Planning)
-**时长**：~3 秒  
+**时长**：~4 秒  
 **操作**：
-1. 平移到后端文档区域
-2. 创建 4 个 Document 节点（loading）
-3. 1.5 秒后填充内容
+1. AI 消息："Designing system architecture for scalability..."
+2. 工具调用：`grep` → "RESTful API patterns"
+3. 工具调用：`read` → "docs/architecture-guide.md"
+4. 平移到后端文档区域
+5. AI 消息："Documenting tech stack and data flow..."
+6. 创建 4 个 Document 节点（loading）
+7. 1.2 秒后填充内容
+8. AI 消息："Architecture documentation complete."
 
 **生成内容**：
 - Development Plan
@@ -94,11 +117,16 @@ panTo(cx + 2800, cy - 100, 0.4);
 ```
 
 ### Act 5: 数据设计 (Data Design)
-**时长**：~2.5 秒  
+**时长**：~3.5 秒  
 **操作**：
-1. 向下平移到数据库区域
-2. 创建 2 个 Table 节点
-3. 1 秒后显示表结构
+1. AI 消息："Modeling database schemas for PostgreSQL..."
+2. 工具调用：`read` → "schemas/postgres-types.sql"
+3. 工具调用：`grep` → "foreign key constraints"
+4. 向下平移到数据库区域
+5. AI 消息："Creating Users and Events tables with relationships..."
+6. 创建 2 个 Table 节点
+7. 0.8 秒后显示表结构
+8. AI 消息："Database models defined."
 
 **生成内容**：
 - Users Table
@@ -110,11 +138,16 @@ panTo(cx + 2750, cy + 300, 0.4);
 ```
 
 ### Act 6: 第三方集成 (Integration)
-**时长**：~2.5 秒  
+**时长**：~3 秒  
 **操作**：
-1. 继续向下到集成区域
-2. 创建 2 个 Integration 节点
-3. 1 秒后显示详细配置
+1. AI 消息："Configuring external service integrations..."
+2. 工具调用：`grep` → "SendGrid API"
+3. 工具调用：`read` → "config/services.json"
+4. 继续向下到集成区域
+5. AI 消息："Setting up email notifications and calendar sync..."
+6. 创建 2 个 Integration 节点
+7. 0.8 秒后显示详细配置
+8. AI 消息："All integrations configured successfully."
 
 **生成内容**：
 - SendGrid（邮件服务）
@@ -129,7 +162,20 @@ panTo(cx + 2700, cy + 600, 0.35);
 **时长**：~1 秒  
 **操作**：
 1. 缩小到全局视图（0.16x）
-2. 显示完成消息
+2. 显示完成消息（包含生成内容清单）
+
+**完成消息内容**：
+```
+Complete! Your full-stack prototype is ready with:
+• 3 Product Strategy Documents
+• User Flow Diagram
+• 5 High-fidelity UI Screens
+• Backend Architecture & Data Models
+• Database Schemas
+• Third-party Integrations
+
+You can click on any node to edit, or use the toolbar to add more resources.
+```
 
 **摄像机**：
 ```typescript
@@ -137,6 +183,30 @@ panTo(cx + 1000, cy, 0.16);
 ```
 
 ## 核心机制
+
+### 0. 辅助函数
+
+#### addAIMessage - 添加 AI 消息
+```typescript
+const addAIMessage = (content: string) => {
+  setMessages(prev => [...prev, {
+    id: `ai-${Date.now()}-${Math.random()}`,
+    type: 'ai',
+    role: 'ai',
+    content,
+    timestamp: Date.now()
+  }]);
+};
+```
+
+#### simulateToolCall - 模拟工具调用
+```typescript
+const simulateToolCall = async (tool: 'grep' | 'read', filePath: string, delay: number = 400) => {
+  const msgId = addToolCallMessage(tool, tool === 'grep' ? 'Search Code' : 'Read File', filePath);
+  await new Promise(r => setTimeout(r, delay));
+  updateToolCallStatus(msgId, 'success');
+};
+```
 
 ### 1. 时序控制
 
