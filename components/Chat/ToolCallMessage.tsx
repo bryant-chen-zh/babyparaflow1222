@@ -10,15 +10,27 @@ interface ToolCallMessageProps {
 export function ToolCallMessage({ toolCall }: ToolCallMessageProps) {
   const { icon: Icon, actionText } = getToolDisplayInfo(toolCall.tool, toolCall.filePath);
 
-  // For 'read' and 'grep' (search), show simple text only
-  if (toolCall.tool === 'read' || toolCall.tool === 'grep') {
+  // For 'read', 'grep', 'list_dir', 'todo_read', 'todo_write', show simple text only
+  const simplifiedTools = ['read', 'grep', 'list_dir', 'todo_read', 'todo_write'];
+  if (simplifiedTools.includes(toolCall.tool)) {
+    const getSimpleLabel = () => {
+      switch (toolCall.tool) {
+        case 'read': return 'Read';
+        case 'grep': return 'Search';
+        case 'list_dir': return 'Browsing files';
+        case 'todo_read': return 'Read todo list';
+        case 'todo_write': return 'Update todo list';
+        default: return toolCall.tool;
+      }
+    };
+
     return (
       <div className="flex items-start gap-2 mb-2">
         <div className="text-xs">
           <span className="text-slate-600">
-            {toolCall.tool === 'read' ? 'Read' : 'Search'}
+            {getSimpleLabel()}
           </span>
-          {toolCall.filePath && (
+          {toolCall.filePath && toolCall.tool !== 'todo_read' && toolCall.tool !== 'todo_write' && (
             <span className="text-slate-400 ml-1">
               {toolCall.filePath}
             </span>

@@ -5,6 +5,8 @@ import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
 import { ToolCallMessage } from './ToolCallMessage';
 import { QuestionCard } from './QuestionCard';
 import { FloatingTodoBar } from './FloatingTodoBar';
+import { FileOperationCard } from './FileOperationCard';
+import { ThinkingMessage } from './ThinkingMessage';
 import { parseMarkdown, renderInlineStyles, Block } from '../../utils/markdownUtils';
 
 interface ChatSidebarProps {
@@ -24,6 +26,7 @@ interface ChatSidebarProps {
   onAnswerQuestion?: (messageId: string, optionId: string) => void;
   onSkipQuestion?: (messageId: string) => void;
   onContinueQuestion?: (messageId: string) => void;
+  onLocateNode?: (nodeId: string) => void;
   currentPlan?: PlanStep[] | null;
 }
 
@@ -85,6 +88,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onAnswerQuestion,
   onSkipQuestion,
   onContinueQuestion,
+  onLocateNode,
   currentPlan
 }) => {
   // State
@@ -542,12 +546,12 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
         )}
         {messages.map((msg) => {
-          // 工具调用消息
+          // Tool call message
           if (msg.type === 'tool_call' && msg.toolCall) {
             return <ToolCallMessage key={msg.id} toolCall={msg.toolCall} />;
           }
 
-          // 问题消息
+          // Question message
           if (msg.type === 'question' && msg.question) {
             return (
               <QuestionCard
@@ -561,7 +565,23 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             );
           }
 
-          // 用户和 AI 消息
+          // File operation message
+          if (msg.type === 'file_operation' && msg.fileOperation) {
+            return (
+              <FileOperationCard
+                key={msg.id}
+                fileOperation={msg.fileOperation}
+                onLocate={onLocateNode}
+              />
+            );
+          }
+
+          // Thinking message
+          if (msg.type === 'thinking' && msg.thinking) {
+            return <ThinkingMessage key={msg.id} thinking={msg.thinking} />;
+          }
+
+          // User and AI messages
           return (
             <div
               key={msg.id}

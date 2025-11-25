@@ -5,7 +5,10 @@ import {
   Terminal,
   Edit,
   FileEdit,
-  FolderSearch
+  FolderSearch,
+  FolderOpen,
+  ListChecks,
+  ClipboardEdit
 } from 'lucide-react';
 
 /**
@@ -60,6 +63,24 @@ export const TOOL_CONFIGS: Record<ToolType, ToolConfig> = {
     friendlyName: 'Create File',
     icon: FileEdit,
     getActionText: (filePath) => `Create File`
+  },
+
+  list_dir: {
+    friendlyName: 'Browsing files',
+    icon: FolderOpen,
+    getActionText: () => 'Browsing files'
+  },
+
+  todo_read: {
+    friendlyName: 'Read Todo List',
+    icon: ListChecks,
+    getActionText: () => 'Read todo list'
+  },
+
+  todo_write: {
+    friendlyName: 'Update Todo List',
+    icon: ClipboardEdit,
+    getActionText: () => 'Update todo list'
   }
 };
 
