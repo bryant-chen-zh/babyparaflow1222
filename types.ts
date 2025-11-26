@@ -119,7 +119,7 @@ export interface PlanStep {
 }
 
 // Tool call type enum
-export type ToolType = 'grep' | 'read' | 'bash' | 'edit' | 'write' | 'glob';
+export type ToolType = 'grep' | 'read' | 'bash' | 'edit' | 'write' | 'glob' | 'list_dir' | 'todo_read' | 'todo_write';
 
 // Tool call message data
 export interface ToolCallData {
@@ -151,8 +151,27 @@ export interface QuestionData {
   currentIndex?: number;
 }
 
+// File operation types
+export type FileOperationType = 'create' | 'write' | 'edit' | 'delete' | 'move';
+export type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration' | 'section';
+
+// File operation message data
+export interface FileOperationData {
+  operation: FileOperationType;
+  target: FileOperationTarget;
+  title: string;           // Display name
+  nodeId?: string;         // Associated node ID (for navigation)
+  status: 'loading' | 'success' | 'error';
+}
+
+// Thinking/reasoning message data
+export interface ThinkingData {
+  content: string;
+  status: 'thinking' | 'done';
+}
+
 // Extended message types
-export type MessageType = 'user' | 'ai' | 'tool_call' | 'question';
+export type MessageType = 'user' | 'ai' | 'tool_call' | 'question' | 'file_operation' | 'thinking';
 
 export interface ChatMessage {
   id: string;
@@ -163,6 +182,8 @@ export interface ChatMessage {
   plan?: PlanStep[];           // Optional To-Do list for this message
   toolCall?: ToolCallData;     // Tool call data
   question?: QuestionData;     // Question data
+  fileOperation?: FileOperationData;  // File operation data
+  thinking?: ThinkingData;     // Thinking/reasoning data
   executionStarted?: boolean;  // Whether "Start Execution" has been clicked
   collapsed?: boolean;         // Whether the question card is collapsed
 }

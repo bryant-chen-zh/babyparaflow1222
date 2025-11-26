@@ -928,9 +928,87 @@ const App = () => {
     }]);
   };
 
+  // 添加 Thinking 消息的辅助函数
+  const addThinkingMessage = (content: string = '', status: 'thinking' | 'done' = 'thinking') => {
+    const msgId = `thinking-${Date.now()}-${Math.random()}`;
+    setMessages(prev => [...prev, {
+      id: msgId,
+      type: 'thinking',
+      content: '',
+      timestamp: Date.now(),
+      thinking: { content, status }
+    }]);
+    return msgId;
+  };
+
+  const updateThinkingMessage = (msgId: string, content: string, status: 'thinking' | 'done') => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === msgId && msg.thinking) {
+        return {
+          ...msg,
+          thinking: { content, status }
+        };
+      }
+      return msg;
+    }));
+  };
+
+  // 添加文件操作消息的辅助函数
+  type FileOperationType = 'create' | 'write' | 'edit' | 'delete' | 'move';
+  type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration' | 'section';
+
+  const addFileOperationMessage = (
+    operation: FileOperationType,
+    target: FileOperationTarget,
+    title: string,
+    nodeId?: string,
+    status: 'loading' | 'success' | 'error' = 'loading'
+  ) => {
+    const msgId = `file-op-${Date.now()}-${Math.random()}`;
+    setMessages(prev => [...prev, {
+      id: msgId,
+      type: 'file_operation',
+      content: '',
+      timestamp: Date.now(),
+      fileOperation: { operation, target, title, nodeId, status }
+    }]);
+    return msgId;
+  };
+
+  const updateFileOperationStatus = (msgId: string, status: 'loading' | 'success' | 'error') => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === msgId && msg.fileOperation) {
+        return {
+          ...msg,
+          fileOperation: { ...msg.fileOperation, status }
+        };
+      }
+      return msg;
+    }));
+  };
+
+  // 定位到画布节点的处理函数
+  const handleLocateNode = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      // 使用 panTo 将节点居中显示
+      panTo(node.x, node.y, 0.5);
+    }
+  };
+
   // 模拟工具调用的辅助函数
-  const simulateToolCall = async (tool: 'grep' | 'read', filePath: string, delay: number = 400) => {
-    const msgId = addToolCallMessage(tool, tool === 'grep' ? 'Search Code' : 'Read File', filePath);
+  const simulateToolCall = async (tool: 'grep' | 'read' | 'list_dir' | 'todo_read' | 'todo_write', filePath: string, delay: number = 400) => {
+    const getActionText = () => {
+      switch (tool) {
+        case 'grep': return 'Search Code';
+        case 'read': return 'Read File';
+        case 'list_dir': return 'List Directory';
+        case 'todo_read': return 'Read todo list';
+        case 'todo_write': return 'Update todo list';
+        default: return tool;
+      }
+    };
+    const msgId = addToolCallMessage(tool, getActionText(), filePath || undefined);
     await new Promise(r => setTimeout(r, delay));
     updateToolCallStatus(msgId, 'success');
   };
@@ -946,9 +1024,19 @@ const App = () => {
     await new Promise(r => setTimeout(r, 600));
     updatePlanStatus(planMsgId, 's1', 'loading');
     
+    // Read todo list first
+    await simulateToolCall('todo_read', '', 300);
+    
+    // Show thinking process
+    const thinkingId1 = addThinkingMessage();
+    await new Promise(r => setTimeout(r, 800));
+    updateThinkingMessage(thinkingId1, 'Analyzing requirements: community event app similar to Luma. Key features needed: event creation, RSVP management, calendar integration, and social discovery.', 'done');
+
     addAIMessage("Analyzing your requirements and researching similar platforms...");
     await new Promise(r => setTimeout(r, 500));
 
+    // List project structure
+    await simulateToolCall('list_dir', 'src/', 250);
     await simulateToolCall('grep', 'event management SaaS', 350);
     await simulateToolCall('read', 'docs/product-templates.md', 300);
 
@@ -968,14 +1056,21 @@ const App = () => {
     ];
     setNodes(prev => [...prev, ...docNodes]);
 
-    // Reveal Doc Content
-    await new Promise(r => setTimeout(r, 1200));
-    setNodes(prev => prev.map(n => {
-        if (n.id === 'node-doc-1') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 };
-        if (n.id === 'node-doc-2') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 };
-        if (n.id === 'node-doc-3') return { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 };
-        return n;
-    }));
+    // Show file operation messages for documents
+    const docOpId1 = addFileOperationMessage('create', 'document', 'User Personas', 'node-doc-1');
+    await new Promise(r => setTimeout(r, 400));
+    updateFileOperationStatus(docOpId1, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-doc-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 } : n));
+
+    const docOpId2 = addFileOperationMessage('create', 'document', 'Product Charter', 'node-doc-2');
+    await new Promise(r => setTimeout(r, 400));
+    updateFileOperationStatus(docOpId2, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-doc-2' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 } : n));
+
+    const docOpId3 = addFileOperationMessage('create', 'document', 'Core Requirements', 'node-doc-3');
+    await new Promise(r => setTimeout(r, 400));
+    updateFileOperationStatus(docOpId3, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-doc-3' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 } : n));
 
     addAIMessage("Product strategy documents ready. Moving to user flow design...");
     updatePlanStatus(planMsgId, 's1', 'done');
@@ -989,6 +1084,7 @@ const App = () => {
     addAIMessage("Mapping user journey based on your requirements...");
     await new Promise(r => setTimeout(r, 400));
 
+    await simulateToolCall('list_dir', 'templates/', 250);
     await simulateToolCall('grep', 'user flow patterns', 300);
     await simulateToolCall('read', 'templates/flow-diagram.json', 350);
 
@@ -1005,7 +1101,10 @@ const App = () => {
     };
     setNodes(prev => [...prev, chartNode]);
 
-    await new Promise(r => setTimeout(r, 1200));
+    // Show file operation message for whiteboard
+    const wbOpId = addFileOperationMessage('create', 'whiteboard', 'User Flow Chart', 'node-whiteboard-1');
+    await new Promise(r => setTimeout(r, 800));
+    updateFileOperationStatus(wbOpId, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-whiteboard-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.whiteboard } : n));
 
     addAIMessage("User flow diagram complete. Now designing the UI screens...");
@@ -1020,6 +1119,7 @@ const App = () => {
     addAIMessage("Designing high-fidelity screens with Tailwind CSS...");
     await new Promise(r => setTimeout(r, 400));
 
+    await simulateToolCall('list_dir', 'design-system/', 250);
     await simulateToolCall('read', 'design-system/colors.css', 300);
     await simulateToolCall('grep', 'navigation component', 350);
 
@@ -1053,23 +1153,26 @@ const App = () => {
     addAIMessage("Building Home and Explore pages with hero sections and event grids...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Reveal first batch of screens
-    const revealScreen = async (id: string, data: any) => {
-        await new Promise(r => setTimeout(r, 500));
+    // Reveal screens with file operation messages
+    const revealScreen = async (id: string, data: any, screenName: string) => {
+        const fileOpId = addFileOperationMessage('create', 'screen', screenName, id);
+        await new Promise(r => setTimeout(r, 400));
+        updateFileOperationStatus(fileOpId, 'success');
+        await new Promise(r => setTimeout(r, 100));
         setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
     };
 
-    await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1);
-    await revealScreen('node-screen-2', MOCK_LUMA_DATA.screen2);
+    await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1, 'Home');
+    await revealScreen('node-screen-2', MOCK_LUMA_DATA.screen2, 'Explore');
 
     await simulateToolCall('read', 'templates/form-patterns.tsx', 300);
 
     addAIMessage("Creating Event Detail, form screens, and user profile...");
     await new Promise(r => setTimeout(r, 400));
 
-    await revealScreen('node-screen-3', MOCK_LUMA_DATA.screen3);
-    await revealScreen('node-screen-4', MOCK_LUMA_DATA.screen4);
-    await revealScreen('node-screen-5', MOCK_LUMA_DATA.screen5);
+    await revealScreen('node-screen-3', MOCK_LUMA_DATA.screen3, 'EventDetail');
+    await revealScreen('node-screen-4', MOCK_LUMA_DATA.screen4, 'CreateEvent');
+    await revealScreen('node-screen-5', MOCK_LUMA_DATA.screen5, 'Profile');
 
     addAIMessage("All screens connected with navigation flow. Moving to backend architecture...");
     updatePlanStatus(planMsgId, 's3', 'done');
@@ -1080,9 +1183,15 @@ const App = () => {
     await new Promise(r => setTimeout(r, 1000));
     updatePlanStatus(planMsgId, 's4', 'loading');
 
+    // Show thinking for architecture decisions
+    const thinkingId2 = addThinkingMessage();
+    await new Promise(r => setTimeout(r, 600));
+    updateThinkingMessage(thinkingId2, 'Evaluating architecture options: monolithic vs microservices. For MVP, recommending Node.js + PostgreSQL with horizontal scaling capability. Redis for session management and job queues.', 'done');
+
     addAIMessage("Designing system architecture for scalability...");
     await new Promise(r => setTimeout(r, 400));
 
+    await simulateToolCall('list_dir', 'docs/', 250);
     await simulateToolCall('grep', 'RESTful API patterns', 350);
     await simulateToolCall('read', 'docs/architecture-guide.md', 300);
 
@@ -1130,11 +1239,21 @@ const App = () => {
     addAIMessage("Modeling database schemas for PostgreSQL...");
     await new Promise(r => setTimeout(r, 400));
 
+    await simulateToolCall('list_dir', 'schemas/', 250);
     await simulateToolCall('read', 'schemas/postgres-types.sql', 300);
     await simulateToolCall('grep', 'foreign key constraints', 350);
 
     // Pan to database area
     panTo(cx + 2750, cy + 300, 0.4);
+
+    // Create table nodes with file operation messages
+    const tableId1 = addFileOperationMessage('create', 'table', 'Users', 'node-table-users');
+    await new Promise(r => setTimeout(r, 300));
+    updateFileOperationStatus(tableId1, 'success');
+
+    const tableId2 = addFileOperationMessage('create', 'table', 'Events', 'node-table-events');
+    await new Promise(r => setTimeout(r, 300));
+    updateFileOperationStatus(tableId2, 'success');
 
     addAIMessage("Creating Users and Events tables with relationships...");
     await new Promise(r => setTimeout(r, 400));
@@ -1170,6 +1289,7 @@ const App = () => {
     addAIMessage("Configuring external service integrations...");
     await new Promise(r => setTimeout(r, 400));
 
+    await simulateToolCall('list_dir', 'config/', 250);
     await simulateToolCall('grep', 'SendGrid API', 300);
     await simulateToolCall('read', 'config/services.json', 350);
 
@@ -1222,8 +1342,16 @@ const App = () => {
 
     setNodes(prev => [...prev, ...integrationNodes]);
 
-    // Gradually reveal integrations
-    await new Promise(r => setTimeout(r, 800));
+    // Show file operation messages for integrations
+    const intId1 = addFileOperationMessage('create', 'integration', 'SendGrid', 'node-integration-sendgrid');
+    await new Promise(r => setTimeout(r, 400));
+    updateFileOperationStatus(intId1, 'success');
+
+    const intId2 = addFileOperationMessage('create', 'integration', 'Google Calendar', 'node-integration-googlecal');
+    await new Promise(r => setTimeout(r, 400));
+    updateFileOperationStatus(intId2, 'success');
+
+    // Reveal integrations
     setNodes(prev => prev.map(n =>
       n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.INTEGRATION
         ? { ...n, status: 'done' }
@@ -1231,6 +1359,14 @@ const App = () => {
     ));
 
     addAIMessage("All integrations configured successfully.");
+    
+    // Clean up temporary files
+    addAIMessage("Cleaning up temporary configuration files...");
+    await new Promise(r => setTimeout(r, 300));
+    const deleteOpId = addFileOperationMessage('delete', 'file', 'temp-config.json', undefined);
+    await new Promise(r => setTimeout(r, 400));
+    updateFileOperationStatus(deleteOpId, 'success');
+    
     updatePlanStatus(planMsgId, 's6', 'done');
 
     // ============================================
@@ -1470,6 +1606,7 @@ const App = () => {
         onAnswerQuestion={handleAnswerQuestion}
         onSkipQuestion={handleSkipQuestion}
         onContinueQuestion={handleContinueQuestion}
+        onLocateNode={handleLocateNode}
         currentPlan={currentPlan}
       />
 

@@ -185,3 +185,5 @@ const canvasY = (clientY - view.y) / view.scale;
 - [ ] 触摸板手势支持
 
 
+
+

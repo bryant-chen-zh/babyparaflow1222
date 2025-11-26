@@ -1,10 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play } from 'lucide-react';
+import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare } from 'lucide-react';
 import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
 import { ToolCallMessage } from './ToolCallMessage';
 import { QuestionCard } from './QuestionCard';
 import { FloatingTodoBar } from './FloatingTodoBar';
+import { FileOperationCard } from './FileOperationCard';
+import { ThinkingMessage } from './ThinkingMessage';
+import { parseMarkdown, renderInlineStyles, Block } from '../../utils/markdownUtils';
 
 interface ChatSidebarProps {
   messages: ChatMessage[];
@@ -23,6 +26,7 @@ interface ChatSidebarProps {
   onAnswerQuestion?: (messageId: string, optionId: string) => void;
   onSkipQuestion?: (messageId: string) => void;
   onContinueQuestion?: (messageId: string) => void;
+  onLocateNode?: (nodeId: string) => void;
   currentPlan?: PlanStep[] | null;
 }
 
@@ -84,6 +88,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onAnswerQuestion,
   onSkipQuestion,
   onContinueQuestion,
+  onLocateNode,
   currentPlan
 }) => {
   // State
@@ -273,8 +278,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     }
   };
 
-  // Render message content with colored mentions
-  const renderMessageContent = (content: string) => {
+  // Render text with colored mentions and inline styles
+  const renderTextWithMentions = (content: string, key?: string) => {
     const allItems = getMentionableItems();
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
@@ -282,15 +287,19 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     // Find all @mentions in the content
     const mentionRegex = /@(\S+)/g;
     let match;
+    let partIndex = 0;
 
     while ((match = mentionRegex.exec(content)) !== null) {
       const mentionText = match[1];
       const fullMention = match[0];
       const matchIndex = match.index;
 
-      // Add text before mention
+      // Add text before mention (with inline styles)
       if (matchIndex > lastIndex) {
-        parts.push(content.substring(lastIndex, matchIndex));
+        const textBefore = content.substring(lastIndex, matchIndex);
+        const styledBefore = renderInlineStyles(textBefore, `${key}-${partIndex}`);
+        parts.push(<React.Fragment key={`${key}-text-${partIndex}`}>{styledBefore}</React.Fragment>);
+        partIndex++;
       }
 
       // Find matching item
@@ -299,7 +308,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       if (item) {
         // Add colored mention
         parts.push(
-          <span key={matchIndex} className={`font-semibold ${item.color}`}>
+          <span key={`${key}-mention-${matchIndex}`} className={`font-semibold ${item.color}`}>
             {fullMention}
           </span>
         );
@@ -311,12 +320,176 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       lastIndex = matchIndex + fullMention.length;
     }
 
-    // Add remaining text
+    // Add remaining text (with inline styles)
     if (lastIndex < content.length) {
-      parts.push(content.substring(lastIndex));
+      const remaining = content.substring(lastIndex);
+      const styledRemaining = renderInlineStyles(remaining, `${key}-${partIndex}`);
+      parts.push(<React.Fragment key={`${key}-text-final`}>{styledRemaining}</React.Fragment>);
     }
 
-    return parts.length > 0 ? parts : content;
+    return parts.length > 0 ? parts : renderInlineStyles(content, key || 'default');
+  };
+
+  // Render a single block with proper styling
+  const renderBlock = (block: Block, index: number) => {
+    const content = renderTextWithMentions(block.content, block.id);
+    
+    switch (block.type) {
+      case 'h1':
+        return (
+          <h1 key={block.id} className="text-lg font-bold text-moxt-text-1 mt-3 mb-1.5 first:mt-0">
+            {content}
+          </h1>
+        );
+      case 'h2':
+        return (
+          <h2 key={block.id} className="text-base font-semibold text-moxt-text-1 mt-2.5 mb-1 first:mt-0">
+            {content}
+          </h2>
+        );
+      case 'h3':
+        return (
+          <h3 key={block.id} className="text-sm font-semibold text-moxt-text-1 mt-2 mb-1 first:mt-0">
+            {content}
+          </h3>
+        );
+      case 'h4':
+        return (
+          <h4 key={block.id} className="text-sm font-medium text-moxt-text-1 mt-1.5 mb-0.5 first:mt-0">
+            {content}
+          </h4>
+        );
+      case 'h5':
+        return (
+          <h5 key={block.id} className="text-[13px] font-medium text-moxt-text-1 mt-1.5 mb-0.5 first:mt-0">
+            {content}
+          </h5>
+        );
+      case 'h6':
+        return (
+          <h6 key={block.id} className="text-[12px] font-medium text-moxt-text-2 mt-1.5 mb-0.5 first:mt-0">
+            {content}
+          </h6>
+        );
+      case 'bullet':
+        return (
+          <li key={block.id} className="flex items-start gap-2 ml-1">
+            <span className="text-moxt-text-2 mt-1.5 text-[8px]">●</span>
+            <span className="flex-1">{content}</span>
+          </li>
+        );
+      case 'numbered':
+        return (
+          <li key={block.id} className="flex items-start gap-2 ml-1">
+            <span className="text-moxt-text-2 font-medium min-w-[1.25rem]">{index + 1}.</span>
+            <span className="flex-1">{content}</span>
+          </li>
+        );
+      case 'task':
+        return (
+          <li key={block.id} className="flex items-start gap-2 ml-1">
+            <Square size={14} className="text-moxt-text-3 mt-0.5 flex-shrink-0" />
+            <span className="flex-1">{content}</span>
+          </li>
+        );
+      case 'task_done':
+        return (
+          <li key={block.id} className="flex items-start gap-2 ml-1">
+            <CheckSquare size={14} className="text-moxt-brand-7 mt-0.5 flex-shrink-0" />
+            <span className="flex-1 line-through text-moxt-text-3">{content}</span>
+          </li>
+        );
+      case 'blockquote':
+        return (
+          <blockquote key={block.id} className="border-l-2 border-moxt-line-2 pl-3 py-0.5 my-1 text-moxt-text-3 italic">
+            {content}
+          </blockquote>
+        );
+      case 'code_block':
+        return (
+          <pre key={block.id} className="bg-moxt-fill-1 border border-moxt-line-1 rounded-md p-3 my-1.5 overflow-x-auto">
+            <code className="text-[12px] font-mono text-moxt-text-1 whitespace-pre">
+              {block.content}
+            </code>
+          </pre>
+        );
+      case 'divider':
+        return <hr key={block.id} className="border-moxt-line-1 my-2" />;
+      case 'paragraph':
+      default:
+        if (!block.content.trim()) return null;
+        return (
+          <p key={block.id} className="my-0.5">
+            {content}
+          </p>
+        );
+    }
+  };
+
+  // Render message content with Markdown support
+  const renderMessageContent = (content: string, isAI: boolean = false) => {
+    if (!isAI) {
+      // User messages: just render with mentions
+      return renderTextWithMentions(content);
+    }
+
+    // AI messages: parse and render Markdown
+    const blocks = parseMarkdown(content);
+    
+    // Group consecutive list items (bullet, numbered, task, task_done) for proper list rendering
+    const elements: React.ReactNode[] = [];
+    let currentListItems: { block: Block; index: number }[] = [];
+    let currentListType: 'bullet' | 'numbered' | 'task' | null = null;
+    let numberedIndex = 0;
+
+    const isListType = (type: string): type is 'bullet' | 'numbered' | 'task' | 'task_done' => {
+      return type === 'bullet' || type === 'numbered' || type === 'task' || type === 'task_done';
+    };
+
+    const getListCategory = (type: string): 'bullet' | 'numbered' | 'task' | null => {
+      if (type === 'bullet') return 'bullet';
+      if (type === 'numbered') return 'numbered';
+      if (type === 'task' || type === 'task_done') return 'task';
+      return null;
+    };
+
+    const flushList = () => {
+      if (currentListItems.length > 0) {
+        const ListTag = currentListType === 'numbered' ? 'ol' : 'ul';
+        elements.push(
+          <ListTag key={`list-${currentListItems[0].block.id}`} className="my-1.5 space-y-0.5">
+            {currentListItems.map(({ block, index }) => renderBlock(block, index))}
+          </ListTag>
+        );
+        currentListItems = [];
+        currentListType = null;
+      }
+    };
+
+    blocks.forEach((block, idx) => {
+      if (isListType(block.type)) {
+        const listCategory = getListCategory(block.type);
+        if (currentListType && currentListType !== listCategory) {
+          flushList();
+        }
+        if (block.type === 'numbered') {
+          if (currentListType !== 'numbered') numberedIndex = 0;
+          currentListItems.push({ block, index: numberedIndex });
+          numberedIndex++;
+        } else {
+          currentListItems.push({ block, index: idx });
+        }
+        currentListType = listCategory;
+      } else {
+        flushList();
+        const rendered = renderBlock(block, idx);
+        if (rendered) elements.push(rendered);
+      }
+    });
+
+    flushList();
+
+    return <div className="space-y-0.5">{elements}</div>;
   };
 
   // Collapsed State
@@ -373,12 +546,12 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
         )}
         {messages.map((msg) => {
-          // 工具调用消息
+          // Tool call message
           if (msg.type === 'tool_call' && msg.toolCall) {
             return <ToolCallMessage key={msg.id} toolCall={msg.toolCall} />;
           }
 
-          // 问题消息
+          // Question message
           if (msg.type === 'question' && msg.question) {
             return (
               <QuestionCard
@@ -392,7 +565,23 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             );
           }
 
-          // 用户和 AI 消息
+          // File operation message
+          if (msg.type === 'file_operation' && msg.fileOperation) {
+            return (
+              <FileOperationCard
+                key={msg.id}
+                fileOperation={msg.fileOperation}
+                onLocate={onLocateNode}
+              />
+            );
+          }
+
+          // Thinking message
+          if (msg.type === 'thinking' && msg.thinking) {
+            return <ThinkingMessage key={msg.id} thinking={msg.thinking} />;
+          }
+
+          // User and AI messages
           return (
             <div
               key={msg.id}
@@ -404,12 +593,12 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                       msg.role === 'user' ? (
                         // User message - keep bubble
                         <div className="px-3 py-2.75 rounded-lg text-13 leading-relaxed bg-moxt-fill-2 text-moxt-text-1 rounded-tr-none">
-                          {renderMessageContent(msg.content)}
+                          {renderMessageContent(msg.content, false)}
                         </div>
                       ) : (
-                        // AI message - remove bubble, plain text only
+                        // AI message - with Markdown support
                         <div className="text-13 leading-relaxed text-moxt-text-2">
-                          {renderMessageContent(msg.content)}
+                          {renderMessageContent(msg.content, true)}
                         </div>
                       )
                   )}
