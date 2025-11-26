@@ -152,8 +152,8 @@ export interface QuestionData {
 }
 
 // File operation types
-export type FileOperationType = 'create' | 'write' | 'edit' | 'delete';
-export type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration';
+export type FileOperationType = 'create' | 'write' | 'edit' | 'delete' | 'move';
+export type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration' | 'section';
 
 // File operation message data
 export interface FileOperationData {

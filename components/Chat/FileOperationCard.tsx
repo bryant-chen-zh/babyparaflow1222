@@ -8,7 +8,8 @@ import {
   Globe,
   FileCode2,
   Loader2,
-  Locate
+  Locate,
+  FolderPlus
 } from 'lucide-react';
 
 interface FileOperationCardProps {
@@ -29,6 +30,8 @@ function getTargetIcon(target: FileOperationTarget) {
       return Table;
     case 'integration':
       return Globe;
+    case 'section':
+      return FolderPlus;
     case 'file':
     default:
       return FileCode2;
@@ -47,6 +50,8 @@ function getStatusText(operation: string, status: string): string {
         return 'Editing...';
       case 'delete':
         return 'Deleting...';
+      case 'move':
+        return 'Moving...';
       default:
         return 'Processing...';
     }
@@ -66,6 +71,8 @@ function getStatusText(operation: string, status: string): string {
       return 'Edited';
     case 'delete':
       return 'Deleted';
+    case 'move':
+      return 'Moved';
     default:
       return 'Done';
   }

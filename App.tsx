@@ -954,8 +954,8 @@ const App = () => {
   };
 
   // 添加文件操作消息的辅助函数
-  type FileOperationType = 'create' | 'write' | 'edit';
-  type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration';
+  type FileOperationType = 'create' | 'write' | 'edit' | 'delete' | 'move';
+  type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration' | 'section';
 
   const addFileOperationMessage = (
     operation: FileOperationType,
