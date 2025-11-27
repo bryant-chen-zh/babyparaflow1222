@@ -1086,19 +1086,21 @@ const App = () => {
     // Show file operation messages for documents
     setOperatingNode('node-doc-1');
     const docOpId1 = addFileOperationMessage('create', 'document', 'User Personas', 'node-doc-1');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId1, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 } : n));
 
+    await new Promise(r => setTimeout(r, 300));
     setOperatingNode('node-doc-2');
     const docOpId2 = addFileOperationMessage('create', 'document', 'Product Charter', 'node-doc-2');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId2, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-2' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 } : n));
 
+    await new Promise(r => setTimeout(r, 300));
     setOperatingNode('node-doc-3');
     const docOpId3 = addFileOperationMessage('create', 'document', 'Core Requirements', 'node-doc-3');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId3, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-3' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 } : n));
     setOperatingNode(null);
@@ -1137,7 +1139,7 @@ const App = () => {
     // Show file operation message for whiteboard
     setOperatingNode('node-whiteboard-1');
     const wbOpId = addFileOperationMessage('create', 'whiteboard', 'User Flow Chart', 'node-whiteboard-1');
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1200));
     updateFileOperationStatus(wbOpId, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-whiteboard-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.whiteboard } : n));
     setOperatingNode(null);
@@ -1195,11 +1197,12 @@ const App = () => {
     const revealScreen = async (id: string, data: any, screenName: string) => {
         setOperatingNode(id);
         const fileOpId = addFileOperationMessage('create', 'screen', screenName, id);
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 1000));
         updateFileOperationStatus(fileOpId, 'success');
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 200));
         setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
         setOperatingNode(null);
+        await new Promise(r => setTimeout(r, 300));
     };
 
     await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1, 'Home');
@@ -1394,12 +1397,13 @@ const App = () => {
     // Show file operation messages for integrations
     setOperatingNode('node-integration-sendgrid');
     const intId1 = addFileOperationMessage('create', 'integration', 'SendGrid', 'node-integration-sendgrid');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(intId1, 'success');
 
+    await new Promise(r => setTimeout(r, 300));
     setOperatingNode('node-integration-googlecal');
     const intId2 = addFileOperationMessage('create', 'integration', 'Google Calendar', 'node-integration-googlecal');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(intId2, 'success');
     setOperatingNode(null);
 
