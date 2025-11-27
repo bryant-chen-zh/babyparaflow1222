@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Loader2, ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
 import { PlanStep } from '../../types';
+
+// Elegant dots loader component
+const DotsLoader = ({ className = '' }: { className?: string }) => (
+  <div className={`loader-dots ${className}`}>
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+);
+
+// Minimal ring spinner component
+const RingLoader = ({ className = '' }: { className?: string }) => (
+  <div className={`loader-ring sm ${className}`}></div>
+);
 
 interface AgentStatusPanelProps {
   plan: PlanStep[] | null;
@@ -60,13 +74,13 @@ export function AgentStatusPanel({ plan, isRunning, currentTaskName }: AgentStat
   const displayTask = loadingTask || completedTaskToShow || currentTask;
   const showCompletedState = completedTaskToShow && !loadingTask;
 
-  // Status icon - same style as FloatingTodoBar
+  // Status icon - using premium loaders
   const getStatusIcon = (status: 'pending' | 'loading' | 'done') => {
     switch (status) {
       case 'pending':
         return <Circle className="w-3.5 h-3.5 text-moxt-text-4" strokeWidth={1.5} />;
       case 'loading':
-        return <Loader2 className="w-3.5 h-3.5 animate-spin text-moxt-text-2" strokeWidth={1.5} />;
+        return <RingLoader />;
       case 'done':
         return <CheckCircle2 className="w-3.5 h-3.5 text-moxt-brand-7" />;
     }

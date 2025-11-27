@@ -2,6 +2,15 @@ import React, { useState } from 'react';
 import { ThinkingData } from '../../types';
 import { Brain, ChevronDown, ChevronRight } from 'lucide-react';
 
+// Elegant dots loader component
+const DotsLoader = () => (
+  <div className="loader-dots">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+);
+
 interface ThinkingMessageProps {
   thinking: ThinkingData;
 }
@@ -19,11 +28,7 @@ export function ThinkingMessage({ thinking }: ThinkingMessageProps) {
           <span className="text-12 font-medium text-moxt-text-2">
             Thinking
           </span>
-          <span className="flex gap-0.5">
-            <span className="w-1 h-1 bg-moxt-text-3 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-1 h-1 bg-moxt-text-3 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-1 h-1 bg-moxt-text-3 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-          </span>
+          <DotsLoader />
         </div>
       </div>
     );

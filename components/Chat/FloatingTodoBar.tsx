@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Loader2, ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
 import { PlanStep } from '../../types';
+
+// Minimal ring spinner component
+const RingLoader = ({ className = '' }: { className?: string }) => (
+  <div className={`loader-ring sm ${className}`}></div>
+);
 
 interface FloatingTodoBarProps {
   plan: PlanStep[] | null;
@@ -48,13 +53,13 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
     onToggle?.();
   };
 
-  // Get status icon for each task
+  // Get status icon for each task - using premium loaders
   const getStatusIcon = (status: 'pending' | 'loading' | 'done') => {
     switch (status) {
       case 'pending':
         return <Circle className="w-3.5 h-3.5 text-moxt-text-4 flex-shrink-0" strokeWidth={1.5} />;
       case 'loading':
-        return <Loader2 className="w-3.5 h-3.5 animate-spin text-moxt-text-2 flex-shrink-0" strokeWidth={1.5} />;
+        return <RingLoader className="flex-shrink-0" />;
       case 'done':
         return <CheckCircle2 className="text-moxt-brand-7 flex-shrink-0" size={14} />;
     }
