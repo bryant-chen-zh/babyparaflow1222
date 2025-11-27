@@ -714,7 +714,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             placeholder="Type @ to mention files or describe your app idea..."
             disabled={isProcessing}
             rows={4}
-            className="w-full bg-transparent text-moxt-text-1 placeholder-moxt-text-4 text-13 py-3 pl-4 pr-12 focus:outline-none transition-all resize-none"
+            className="w-full bg-transparent text-moxt-text-1 placeholder-moxt-text-4 text-13 py-3 pl-4 pr-12 focus:outline-none focus:ring-0 border-none resize-none"
           />
           <button
             type="submit"
