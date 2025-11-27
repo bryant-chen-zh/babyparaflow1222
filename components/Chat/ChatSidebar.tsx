@@ -647,8 +647,14 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      <div className="px-4 py-3 bg-moxt-fill-white border-t border-moxt-line-1">
-        <form onSubmit={handleSubmit} className="relative">
+      <div className="px-4 py-3">
+        {/* 统一容器：FloatingTodoBar + 输入框 */}
+        <div className="bg-moxt-fill-white rounded-xl border border-moxt-line-1 overflow-hidden">
+          {/* Floating Todo Bar */}
+          <FloatingTodoBar plan={currentPlan || null} />
+
+          {/* 输入区域 */}
+          <form onSubmit={handleSubmit} className="relative">
           {/* Mention Popover */}
           {showMentions && (
             <div className="absolute bottom-full left-0 w-full mb-2 bg-moxt-fill-white border border-moxt-line-1 shadow-lg rounded-lg overflow-hidden max-h-64 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-100">
@@ -700,9 +706,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
           )}
 
-          {/* Floating Todo Bar - shows all tasks above input */}
-          <FloatingTodoBar plan={currentPlan || null} />
-
           <textarea
             ref={textareaRef}
             value={input}
@@ -710,8 +713,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             onKeyDown={handleKeyDown}
             placeholder="Type @ to mention files or describe your app idea..."
             disabled={isProcessing}
-            rows={3}
-            className="w-full bg-moxt-fill-1 text-moxt-text-1 placeholder-moxt-text-4 text-13 rounded-lg py-3 pl-4 pr-12 focus:outline-none focus:ring-2 focus:ring-moxt-brand-7/30 border border-moxt-line-1 transition-all resize-none"
+            rows={4}
+            className="w-full bg-transparent text-moxt-text-1 placeholder-moxt-text-4 text-13 py-3 pl-4 pr-12 focus:outline-none transition-all resize-none"
           />
           <button
             type="submit"
@@ -721,6 +724,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             <Send size={16} />
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

@@ -68,16 +68,16 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
   const isHeaderTaskJustCompleted = currentTask?.id === justCompletedId;
 
   return (
-    <div className="bg-moxt-fill-white rounded-lg shadow-md border border-moxt-line-1 overflow-hidden mb-3">
+    <div className="bg-moxt-fill-white border-b border-moxt-line-1">
         {/* Header - always visible */}
         <button
           onClick={handleToggle}
-          className={`w-full px-3 py-2.5 flex items-start gap-2.5 hover:bg-moxt-fill-opacity-1 transition-all group ${
+          className={`w-full px-3 py-2 flex items-center gap-2 hover:bg-moxt-fill-opacity-1 transition-all group ${
             isHeaderTaskJustCompleted ? 'bg-moxt-fill-1' : ''
           }`}
         >
           {/* Current task icon */}
-          <div className="relative flex-shrink-0 pt-0.5">
+          <div className="relative flex-shrink-0">
             {allCompleted ? (
               <CheckCircle2 className="text-moxt-brand-7 flex-shrink-0" size={14} />
             ) : (
@@ -88,20 +88,14 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
             )}
           </div>
 
-          {/* Task info */}
-          <div className="flex-1 text-left min-w-0">
-            <div className="text-13 font-semibold text-moxt-text-1 transition-colors">
-              {currentTask ? currentTask.label : 'All tasks completed'}
-            </div>
-            <div className="text-12 text-moxt-text-3 mt-0.5">
-              {isHeaderTaskJustCompleted ? '✓ Completed!' :
-               allCompleted ? 'Execution complete' : 'Processing...'}
-            </div>
-          </div>
+          {/* Task info - single line */}
+          <span className="flex-1 text-left text-13 font-medium text-moxt-text-1 truncate">
+            {currentTask ? currentTask.label : 'All tasks completed'}
+          </span>
 
           {/* Progress counter */}
-          <div className="flex items-start gap-2 flex-shrink-0 pt-0.5">
-            <span className="text-12 font-semibold text-moxt-text-2 tabular-nums">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-12 font-medium text-moxt-text-3 tabular-nums">
               {completedCount}/{totalCount}
             </span>
 
