@@ -1,20 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
 import { PlanStep } from '../../types';
-
-// Elegant dots loader component
-const DotsLoader = ({ className = '' }: { className?: string }) => (
-  <div className={`loader-dots ${className}`}>
-    <span></span>
-    <span></span>
-    <span></span>
-  </div>
-);
-
-// Minimal ring spinner component
-const RingLoader = ({ className = '' }: { className?: string }) => (
-  <div className={`loader-ring sm ${className}`}></div>
-);
+import { CountUp } from '../ReactBits';
 
 interface AgentStatusPanelProps {
   plan: PlanStep[] | null;
@@ -74,13 +61,13 @@ export function AgentStatusPanel({ plan, isRunning, currentTaskName }: AgentStat
   const displayTask = loadingTask || completedTaskToShow || currentTask;
   const showCompletedState = completedTaskToShow && !loadingTask;
 
-  // Status icon - using premium loaders
+  // Status icon - same style as FloatingTodoBar
   const getStatusIcon = (status: 'pending' | 'loading' | 'done') => {
     switch (status) {
       case 'pending':
         return <Circle className="w-3.5 h-3.5 text-moxt-text-4" strokeWidth={1.5} />;
       case 'loading':
-        return <RingLoader />;
+        return <Loader2 className="w-3.5 h-3.5 animate-spin text-moxt-text-2" strokeWidth={1.5} />;
       case 'done':
         return <CheckCircle2 className="w-3.5 h-3.5 text-moxt-brand-7" />;
     }
@@ -118,10 +105,14 @@ export function AgentStatusPanel({ plan, isRunning, currentTaskName }: AgentStat
             {allCompleted ? 'All tasks completed' : (displayTask ? displayTask.label : 'Processing...')}
           </span>
 
-          {/* Progress counter */}
+          {/* Progress counter with animated CountUp */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-12 font-medium text-moxt-text-3 tabular-nums">
-              {completedCount}/{totalCount}
+              <CountUp 
+                to={completedCount} 
+                duration={400} 
+                easing="easeOut"
+              />/{totalCount}
             </span>
 
             {/* Expand/collapse icon */}
