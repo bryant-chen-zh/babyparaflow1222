@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChatSidebar } from './components/Chat/ChatSidebar';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
+import { AgentStatusPanel } from './components/Canvas/AgentStatusPanel';
 import { MarkdownModal } from './components/Editor/MarkdownModal';
 import { WhiteboardModal } from './components/Editor/WhiteboardModal';
 import { ImmersiveView } from './components/Preview/ImmersiveView';
@@ -735,6 +736,12 @@ const App = () => {
   const [questionsCompleted, setQuestionsCompleted] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<PlanStep[] | null>(null);
 
+  // Agent 进程可视化状态
+  const [agentIsRunning, setAgentIsRunning] = useState(false);
+  const [currentOperatingNodeId, setCurrentOperatingNodeId] = useState<string | null>(null);
+  const [justCreatedNodeIds, setJustCreatedNodeIds] = useState<string[]>([]);
+  const [currentTaskName, setCurrentTaskName] = useState<string>('');
+
   // Canvas @ Mention State
   const [isCanvasSelectionMode, setIsCanvasSelectionMode] = useState(false);
   const [mentionedNodeIds, setMentionedNodeIds] = useState<string[]>([]);
@@ -1013,16 +1020,34 @@ const App = () => {
     updateToolCallStatus(msgId, 'success');
   };
 
+  // 辅助函数：标记节点为正在操作
+  const setOperatingNode = (nodeId: string | null) => {
+    setCurrentOperatingNodeId(nodeId);
+  };
+
+  // 辅助函数：标记节点刚被创建（用于弹出动画）
+  const markNodeAsJustCreated = (nodeId: string) => {
+    setJustCreatedNodeIds(prev => [...prev, nodeId]);
+    // 动画结束后移除标记
+    setTimeout(() => {
+      setJustCreatedNodeIds(prev => prev.filter(id => id !== nodeId));
+    }, 600);
+  };
+
   // 执行工作流（增强版：穿插更多工具调用和 AI 消息）
   const executeWorkflow = async (planMsgId: string) => {
     const cx = LAYOUT_CENTER_X;
     const cy = LAYOUT_CENTER_Y;
+
+    // 开始 Agent 运行
+    setAgentIsRunning(true);
 
     // ============================================
     // PHASE 1: Drafting Product Strategy
     // ============================================
     await new Promise(r => setTimeout(r, 600));
     updatePlanStatus(planMsgId, 's1', 'loading');
+    setCurrentTaskName('Drafting Product Strategy');
     
     // Read todo list first
     await simulateToolCall('todo_read', '', 300);
@@ -1055,22 +1080,28 @@ const App = () => {
       { id: 'node-doc-3', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X, y: docY, title: 'Core Requirements', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
     ];
     setNodes(prev => [...prev, ...docNodes]);
+    // Mark all doc nodes as just created for pop-in animation
+    docNodes.forEach(n => markNodeAsJustCreated(n.id));
 
     // Show file operation messages for documents
+    setOperatingNode('node-doc-1');
     const docOpId1 = addFileOperationMessage('create', 'document', 'User Personas', 'node-doc-1');
     await new Promise(r => setTimeout(r, 400));
     updateFileOperationStatus(docOpId1, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 } : n));
 
+    setOperatingNode('node-doc-2');
     const docOpId2 = addFileOperationMessage('create', 'document', 'Product Charter', 'node-doc-2');
     await new Promise(r => setTimeout(r, 400));
     updateFileOperationStatus(docOpId2, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-2' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 } : n));
 
+    setOperatingNode('node-doc-3');
     const docOpId3 = addFileOperationMessage('create', 'document', 'Core Requirements', 'node-doc-3');
     await new Promise(r => setTimeout(r, 400));
     updateFileOperationStatus(docOpId3, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-3' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 } : n));
+    setOperatingNode(null);
 
     addAIMessage("Product strategy documents ready. Moving to user flow design...");
     updatePlanStatus(planMsgId, 's1', 'done');
@@ -1080,6 +1111,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's2', 'loading');
+    setCurrentTaskName('Designing User Flow');
 
     addAIMessage("Mapping user journey based on your requirements...");
     await new Promise(r => setTimeout(r, 400));
@@ -1100,12 +1132,15 @@ const App = () => {
         id: 'node-whiteboard-1', type: NodeType.WHITEBOARD, x: chartX, y: chartY, title: 'User Flow Chart', status: 'loading', data: null, sectionId: SECTION_IDS.CHART
     };
     setNodes(prev => [...prev, chartNode]);
+    markNodeAsJustCreated('node-whiteboard-1');
 
     // Show file operation message for whiteboard
+    setOperatingNode('node-whiteboard-1');
     const wbOpId = addFileOperationMessage('create', 'whiteboard', 'User Flow Chart', 'node-whiteboard-1');
     await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(wbOpId, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-whiteboard-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.whiteboard } : n));
+    setOperatingNode(null);
 
     addAIMessage("User flow diagram complete. Now designing the UI screens...");
     updatePlanStatus(planMsgId, 's2', 'done');
@@ -1115,6 +1150,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's3', 'loading');
+    setCurrentTaskName('Generating Prototype');
 
     addAIMessage("Designing high-fidelity screens with Tailwind CSS...");
     await new Promise(r => setTimeout(r, 400));
@@ -1140,6 +1176,8 @@ const App = () => {
         { id: 'node-screen-5', type: NodeType.SCREEN, x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
     ];
     setNodes(prev => [...prev, ...screenNodes]);
+    // Mark all screen nodes as just created for pop-in animation
+    screenNodes.forEach(n => markNodeAsJustCreated(n.id));
 
     // Render Edges
     const flowEdges: CanvasEdge[] = [
@@ -1155,11 +1193,13 @@ const App = () => {
 
     // Reveal screens with file operation messages
     const revealScreen = async (id: string, data: any, screenName: string) => {
+        setOperatingNode(id);
         const fileOpId = addFileOperationMessage('create', 'screen', screenName, id);
         await new Promise(r => setTimeout(r, 400));
         updateFileOperationStatus(fileOpId, 'success');
         await new Promise(r => setTimeout(r, 100));
         setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
+        setOperatingNode(null);
     };
 
     await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1, 'Home');
@@ -1182,6 +1222,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 1000));
     updatePlanStatus(planMsgId, 's4', 'loading');
+    setCurrentTaskName('Planning Backend Architecture');
 
     // Show thinking for architecture decisions
     const thinkingId2 = addThinkingMessage();
@@ -1216,6 +1257,8 @@ const App = () => {
     ];
 
     setNodes(prev => [...prev, ...backendDocNodes]);
+    // Mark backend doc nodes as just created
+    backendDocNodes.forEach(n => markNodeAsJustCreated(n.id));
 
     // Reveal Backend Documents
     await new Promise(r => setTimeout(r, 1200));
@@ -1235,6 +1278,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 1000));
     updatePlanStatus(planMsgId, 's5', 'loading');
+    setCurrentTaskName('Designing Data & Resources');
 
     addAIMessage("Modeling database schemas for PostgreSQL...");
     await new Promise(r => setTimeout(r, 400));
@@ -1268,6 +1312,8 @@ const App = () => {
     ];
 
     setNodes(prev => [...prev, ...databaseNodes]);
+    // Mark database nodes as just created
+    databaseNodes.forEach(n => markNodeAsJustCreated(n.id));
 
     // Reveal database nodes
     await new Promise(r => setTimeout(r, 800));
@@ -1285,6 +1331,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's6', 'loading');
+    setCurrentTaskName('Integrating Third-party Services');
 
     addAIMessage("Configuring external service integrations...");
     await new Promise(r => setTimeout(r, 400));
@@ -1341,15 +1388,20 @@ const App = () => {
     ];
 
     setNodes(prev => [...prev, ...integrationNodes]);
+    // Mark integration nodes as just created
+    integrationNodes.forEach(n => markNodeAsJustCreated(n.id));
 
     // Show file operation messages for integrations
+    setOperatingNode('node-integration-sendgrid');
     const intId1 = addFileOperationMessage('create', 'integration', 'SendGrid', 'node-integration-sendgrid');
     await new Promise(r => setTimeout(r, 400));
     updateFileOperationStatus(intId1, 'success');
 
+    setOperatingNode('node-integration-googlecal');
     const intId2 = addFileOperationMessage('create', 'integration', 'Google Calendar', 'node-integration-googlecal');
     await new Promise(r => setTimeout(r, 400));
     updateFileOperationStatus(intId2, 'success');
+    setOperatingNode(null);
 
     // Reveal integrations
     setNodes(prev => prev.map(n =>
@@ -1374,6 +1426,11 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 600));
     panTo(cx + 1000, cy, 0.16);
+
+    // 结束 Agent 运行
+    setAgentIsRunning(false);
+    setCurrentOperatingNodeId(null);
+    setCurrentTaskName('');
 
     setIsProcessing(false);
     addAIMessage("Complete! Your full-stack prototype is ready with:\n• 3 Product Strategy Documents\n• User Flow Diagram\n• 5 High-fidelity UI Screens\n• Backend Architecture & Data Models\n• Database Schemas\n• Third-party Integrations\n\nYou can click on any node to edit, or use the toolbar to add more resources.");
@@ -1630,6 +1687,15 @@ const App = () => {
             mentionedNodeIds={mentionedNodeIds}
             onNodeMentionSelect={handleNodeMentionSelect}
             onRemoveMention={handleRemoveMention}
+            currentOperatingNodeId={currentOperatingNodeId}
+            justCreatedNodeIds={justCreatedNodeIds}
+        />
+
+        {/* Agent Status Panel - 画布顶部居中 */}
+        <AgentStatusPanel
+          plan={currentPlan}
+          isRunning={agentIsRunning}
+          currentTaskName={currentTaskName}
         />
 
         {runningScreenId && (

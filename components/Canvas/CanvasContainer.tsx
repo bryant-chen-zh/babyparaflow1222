@@ -30,6 +30,9 @@ interface CanvasContainerProps {
   mentionedNodeIds?: string[];
   onNodeMentionSelect?: (nodeId: string) => void;
   onRemoveMention?: (nodeId: string) => void;
+  // Agent progress visualization
+  currentOperatingNodeId?: string | null;
+  justCreatedNodeIds?: string[];
 }
 
 interface SectionBounds {
@@ -185,7 +188,9 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     isCanvasSelectionMode = false,
     mentionedNodeIds = [],
     onNodeMentionSelect,
-    onRemoveMention
+    onRemoveMention,
+    currentOperatingNodeId = null,
+    justCreatedNodeIds = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -798,20 +803,24 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 const isHovered = hoveredNodeId === node.id && !isSelected && !isMentioned;
                 const isHoveredInSelectionMode = isCanvasSelectionMode && hoveredNodeId === node.id;
                 const isDragging = draggedNodeId === node.id;
+                const isOperating = currentOperatingNodeId === node.id;
+                const isJustCreated = justCreatedNodeIds.includes(node.id);
 
                 return (
                 <div
                     key={node.id}
                     data-id={node.id}
                     className={`canvas-node absolute shadow-sm rounded-lg bg-moxt-fill-white border border-moxt-line-1
-                        ${!isDragging ? 'transition-all duration-200' : ''}
-                        ${node.type === NodeType.SCREEN || isMentioned ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
+                        ${!isDragging && !isJustCreated ? 'transition-all duration-200' : ''}
+                        ${node.type === NodeType.SCREEN || isMentioned || isOperating ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
                         ${isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
                         ${isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
                         ${isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
                         ${isMentioned ? 'ring-2 ring-blue-500' : ''}
                         ${isDragging ? 'scale-[1.01] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
+                        ${isOperating ? 'node-operating' : ''}
+                        ${isJustCreated ? 'node-just-created' : ''}
                     `}
                     style={{
                         left: node.x,
