@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Loader2, ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
 import { PlanStep } from '../../types';
 
@@ -9,31 +9,35 @@ interface FloatingTodoBarProps {
 
 export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
+  const [showCompletedId, setShowCompletedId] = useState<string | null>(null);
   const prevPlanRef = useRef<PlanStep[] | null>(null);
 
-  // Detect when a task completes and trigger celebration animation
-  useEffect(() => {
-    if (!plan || !prevPlanRef.current) {
-      prevPlanRef.current = plan;
-      return;
-    }
-
-    // Find tasks that just changed from loading to done
+  // Synchronously detect just completed task (before render)
+  const justCompletedTask = useMemo(() => {
+    if (!plan || !prevPlanRef.current) return null;
+    
     const prevPlan = prevPlanRef.current;
-    const newlyCompleted = plan.find((task, idx) => {
+    const completed = plan.find((task, idx) => {
       const prevTask = prevPlan[idx];
       return prevTask && prevTask.status === 'loading' && task.status === 'done';
     });
+    
+    return completed || null;
+  }, [plan]);
 
-    if (newlyCompleted) {
-      setJustCompletedId(newlyCompleted.id);
-      // Clear the animation after 800ms
-      setTimeout(() => {
-        setJustCompletedId(null);
+  // Update ref and manage show duration
+  useEffect(() => {
+    if (justCompletedTask) {
+      setShowCompletedId(justCompletedTask.id);
+      const timer = setTimeout(() => {
+        setShowCompletedId(null);
       }, 800);
+      return () => clearTimeout(timer);
     }
+  }, [justCompletedTask]);
 
+  // Update prevPlanRef after render
+  useEffect(() => {
     prevPlanRef.current = plan;
   }, [plan]);
 
@@ -58,6 +62,18 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
 
   // Find current task (first loading task, or first pending if none loading)
   const currentTask = plan.find(t => t.status === 'loading') || plan.find(t => t.status === 'pending');
+  
+  // Get the task to show as completed (either just completed or still showing)
+  const completedTaskToShow = (justCompletedTask || (showCompletedId ? plan.find(t => t.id === showCompletedId) : null));
+  
+  // Find if there's a loading task (takes priority)
+  const loadingTask = plan.find(t => t.status === 'loading');
+  
+  // Display task: loading task takes priority, then completed, then pending
+  const displayTask = loadingTask || completedTaskToShow || currentTask;
+  
+  // Only show completed icon if no loading task
+  const showCompletedState = completedTaskToShow && !loadingTask;
   const completedCount = plan.filter(t => t.status === 'done').length;
   const totalCount = plan.length;
   const progressPercent = (completedCount / totalCount) * 100;
@@ -65,43 +81,39 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
   const allCompleted = completedCount === totalCount;
 
   // Check if the task shown in header is just completed
-  const isHeaderTaskJustCompleted = currentTask?.id === justCompletedId;
+  const isHeaderTaskJustCompleted = currentTask?.id === showCompletedId;
 
   return (
-    <div className="bg-moxt-fill-white rounded-lg shadow-md border border-moxt-line-1 overflow-hidden mb-3">
+    <div className="bg-moxt-fill-white border-b border-moxt-line-1">
         {/* Header - always visible */}
         <button
           onClick={handleToggle}
-          className={`w-full px-3 py-2.5 flex items-start gap-2.5 hover:bg-moxt-fill-opacity-1 transition-all group ${
+          className={`w-full px-3 py-2 flex items-center gap-2 hover:bg-moxt-fill-opacity-1 transition-all group ${
             isHeaderTaskJustCompleted ? 'bg-moxt-fill-1' : ''
           }`}
         >
           {/* Current task icon */}
-          <div className="relative flex-shrink-0 pt-0.5">
-            {allCompleted ? (
+          <div className="relative flex-shrink-0">
+            {showCompletedState ? (
+              <CheckCircle2 className="text-moxt-brand-7 flex-shrink-0" size={14} />
+            ) : allCompleted ? (
               <CheckCircle2 className="text-moxt-brand-7 flex-shrink-0" size={14} />
             ) : (
-              currentTask && getStatusIcon(currentTask.status)
+              displayTask && getStatusIcon(displayTask.status)
             )}
-            {(currentTask?.status === 'loading' || isHeaderTaskJustCompleted) && (
+            {loadingTask && (
               <div className="absolute inset-0 bg-moxt-text-3/30 rounded-full animate-ping" />
             )}
           </div>
 
-          {/* Task info */}
-          <div className="flex-1 text-left min-w-0">
-            <div className="text-13 font-semibold text-moxt-text-1 transition-colors">
-              {currentTask ? currentTask.label : 'All tasks completed'}
-            </div>
-            <div className="text-12 text-moxt-text-3 mt-0.5">
-              {isHeaderTaskJustCompleted ? '✓ Completed!' :
-               allCompleted ? 'Execution complete' : 'Processing...'}
-            </div>
-          </div>
+          {/* Task info - single line */}
+          <span className="flex-1 text-left text-13 font-medium text-moxt-text-1 truncate">
+            {displayTask ? displayTask.label : 'All tasks completed'}
+          </span>
 
           {/* Progress counter */}
-          <div className="flex items-start gap-2 flex-shrink-0 pt-0.5">
-            <span className="text-12 font-semibold text-moxt-text-2 tabular-nums">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-12 font-medium text-moxt-text-3 tabular-nums">
               {completedCount}/{totalCount}
             </span>
 
@@ -119,7 +131,7 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
           <div className="border-t border-moxt-line-1">
             <div className="px-2.5 py-2 space-y-1 max-h-48 overflow-y-auto">
               {plan.map((task, index) => {
-                const isJustCompleted = task.id === justCompletedId;
+                const isJustCompleted = task.id === showCompletedId;
                 return (
                   <div
                     key={task.id}
