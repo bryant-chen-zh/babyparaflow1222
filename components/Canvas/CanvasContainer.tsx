@@ -716,7 +716,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       onWheel={handleWheel}
     >
       <div
-        className={`absolute top-0 left-0 w-full h-full origin-top-left pointer-events-none ${!isDraggingCanvas ? 'transition-transform duration-700 ease-in-out' : ''}`}
+        className={`absolute top-0 left-0 w-full h-full origin-top-left pointer-events-none ${!isDraggingCanvas ? 'transition-transform duration-150 ease-out' : ''}`}
         style={{
           transform: `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`,
           willChange: isDraggingCanvas ? 'transform' : 'auto',

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare } from 'lucide-react';
+import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare, ImagePlus, X } from 'lucide-react';
 import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
 import { ToolCallMessage } from './ToolCallMessage';
 import { QuestionCard } from './QuestionCard';
@@ -11,7 +11,7 @@ import { parseMarkdown, renderInlineStyles, Block } from '../../utils/markdownUt
 
 interface ChatSidebarProps {
   messages: ChatMessage[];
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, images?: string[]) => void;
   onStartSimulation: () => void;
   isProcessing: boolean;
   isOpen: boolean;
@@ -93,12 +93,111 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 }) => {
   // State
   const [input, setInput] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const mentionStartPos = useRef<number>(-1);
+
+  const MAX_IMAGES = 4;
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  // Compress image and convert to base64
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 1200;
+          let { width, height } = img;
+          
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height / width) * maxSize;
+              width = maxSize;
+            } else {
+              width = (width / height) * maxSize;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = reject;
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files) return;
+    
+    const validFiles = Array.from(files)
+      .filter(f => f.type.startsWith('image/') && f.size <= MAX_FILE_SIZE)
+      .slice(0, MAX_IMAGES - images.length);
+    
+    for (const file of validFiles) {
+      try {
+        const base64 = await compressImage(file);
+        setImages(prev => [...prev, base64].slice(0, MAX_IMAGES));
+      } catch (err) {
+        console.error('Failed to process image:', err);
+      }
+    }
+  };
+
+  // Remove image
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle paste event
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      const imageItems = Array.from(items).filter(item => item.type.startsWith('image/'));
+      if (imageItems.length > 0) {
+        e.preventDefault();
+        const files = imageItems.map(item => item.getAsFile()).filter(Boolean) as File[];
+        handleFileSelect(files as unknown as FileList);
+      }
+    };
+    
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [images.length]);
+
+  // Handle drag events
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileSelect(e.dataTransfer.files);
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -270,10 +369,11 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isProcessing) {
-      // Send message and always trigger simulation
-      onSendMessage(input);
+    if ((input.trim() || images.length > 0) && !isProcessing) {
+      // Send message with images and always trigger simulation
+      onSendMessage(input, images);
       setInput('');
+      setImages([]);
       onStartSimulation();
     }
   };
@@ -588,6 +688,20 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'max-w-[80%]' : 'w-full'}`}>
+                  {/* User Images */}
+                  {msg.role === 'user' && msg.images && msg.images.length > 0 && (
+                    <div className={`flex gap-2 flex-wrap justify-end`}>
+                      {msg.images.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt={`Image ${idx + 1}`}
+                          className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-moxt-line-1"
+                        />
+                      ))}
+                    </div>
+                  )}
+
                   {/* Text Content */}
                   {msg.content && (
                       msg.role === 'user' ? (
@@ -654,7 +768,20 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           <FloatingTodoBar plan={currentPlan || null} />
 
           {/* 输入区域 */}
-          <form onSubmit={handleSubmit} className="relative">
+          <form 
+            onSubmit={handleSubmit} 
+            className="relative"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+          {/* Drag Overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 bg-moxt-brand-7/10 border-2 border-dashed border-moxt-brand-7 rounded-lg z-50 flex items-center justify-center">
+              <div className="text-moxt-brand-7 font-medium text-13">Drop images here</div>
+            </div>
+          )}
+
           {/* Mention Popover */}
           {showMentions && (
             <div className="absolute bottom-full left-0 w-full mb-2 bg-moxt-fill-white border border-moxt-line-1 shadow-lg rounded-lg overflow-hidden max-h-64 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-100">
@@ -706,6 +833,28 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
           )}
 
+          {/* Image Preview */}
+          {images.length > 0 && (
+            <div className="flex gap-2 px-3 pt-3 pb-1 flex-wrap">
+              {images.map((img, idx) => (
+                <div key={idx} className="relative group">
+                  <img
+                    src={img}
+                    alt={`Upload ${idx + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg border border-moxt-line-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-moxt-text-1 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             value={input}
@@ -713,16 +862,42 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             onKeyDown={handleKeyDown}
             placeholder="Type @ to mention files or describe your app idea..."
             disabled={isProcessing}
-            rows={4}
-            className="w-full bg-transparent text-moxt-text-1 placeholder-moxt-text-4 text-13 py-3 pl-4 pr-12 focus:outline-none focus:ring-0 border-none resize-none"
+            rows={3}
+            className="w-full bg-transparent text-moxt-text-1 placeholder-moxt-text-4 text-13 py-2 px-3 focus:outline-none focus:ring-0 border-none resize-none"
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || isProcessing}
-            className="absolute right-2 bottom-2 p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-md transition-colors"
-          >
-            <Send size={16} />
-          </button>
+
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-2 pb-2">
+            {/* Left: Image Button */}
+            <div className="flex items-center gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFileSelect(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={images.length >= MAX_IMAGES || isProcessing}
+                className="p-1.5 hover:bg-moxt-fill-1 disabled:opacity-50 text-moxt-text-3 hover:text-moxt-text-2 rounded-md transition-colors"
+                title={`Add image (${images.length}/${MAX_IMAGES})`}
+              >
+                <ImagePlus size={18} />
+              </button>
+            </div>
+
+            {/* Right: Send Button */}
+            <button
+              type="submit"
+              disabled={(!input.trim() && images.length === 0) || isProcessing}
+              className="p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-md transition-colors"
+            >
+              <Send size={18} />
+            </button>
+          </div>
         </form>
         </div>
       </div>
