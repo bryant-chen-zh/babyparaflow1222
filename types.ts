@@ -179,6 +179,7 @@ export interface ChatMessage {
   role?: 'user' | 'ai'; // For backward compatibility, used by user/ai types
   content: string;
   timestamp: number;
+  images?: string[];           // Base64 encoded images
   plan?: PlanStep[];           // Optional To-Do list for this message
   toolCall?: ToolCallData;     // Tool call data
   question?: QuestionData;     // Question data
