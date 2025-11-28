@@ -143,15 +143,6 @@ export function WhiteboardSkeleton() {
       
       {/* Canvas Area with Flow Elements */}
       <div className="flex-1 bg-moxt-fill-1 relative overflow-hidden">
-        {/* Grid Pattern Overlay */}
-        <div 
-          className="absolute inset-0 opacity-30"
-          style={{ 
-            backgroundImage: 'radial-gradient(var(--moxt-line-1) 1px, transparent 1px)', 
-            backgroundSize: '20px 20px' 
-          }}
-        />
-        
         {/* Flowchart-like skeleton elements */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative">

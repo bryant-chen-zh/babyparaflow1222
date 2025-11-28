@@ -9,6 +9,7 @@ interface ScreenNodeProps {
   title?: string;
   data: ScreenData | null;
   loading?: boolean;
+  variant?: 'web' | 'mobile';
   onRun?: () => void;
   onEditPlan?: () => void;
 }
@@ -17,13 +18,14 @@ export const ScreenNode: React.FC<ScreenNodeProps> = ({
   title,
   data,
   loading,
+  variant = 'web',
   onRun,
   onEditPlan
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   if (loading || !data) {
-    return <ScreenSkeleton isWeb={false} />;
+    return <ScreenSkeleton isWeb={variant === 'web'} />;
   }
 
   const isWeb = data.variant === 'web';

@@ -1171,11 +1171,11 @@ const App = () => {
     const sXStart = cx - WEB_NODE_SPACING_X;
 
     const screenNodes: CanvasNode[] = [
-        { id: 'node-screen-1', type: NodeType.SCREEN, x: sXStart, y: sY1, title: 'Home', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-2', type: NodeType.SCREEN, x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-3', type: NodeType.SCREEN, x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-4', type: NodeType.SCREEN, x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-5', type: NodeType.SCREEN, x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
+        { id: 'node-screen-1', type: NodeType.SCREEN, x: sXStart, y: sY1, title: 'Home', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
+        { id: 'node-screen-2', type: NodeType.SCREEN, x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
+        { id: 'node-screen-3', type: NodeType.SCREEN, x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
+        { id: 'node-screen-4', type: NodeType.SCREEN, x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
+        { id: 'node-screen-5', type: NodeType.SCREEN, x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
     ];
     setNodes(prev => [...prev, ...screenNodes]);
     // Mark all screen nodes as just created for pop-in animation
@@ -1252,26 +1252,41 @@ const App = () => {
     const backendDocY = backendBaseY;
     const backendDocSpacing = 500;
 
-    const backendDocNodes: CanvasNode[] = [
-      { id: 'node-doc-dev-plan', type: NodeType.DOCUMENT, x: backendDocX, y: backendDocY, title: 'Development Plan', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
-      { id: 'node-doc-tech-stack', type: NodeType.DOCUMENT, x: backendDocX + backendDocSpacing, y: backendDocY, title: 'Tech Stack', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
-      { id: 'node-doc-architecture', type: NodeType.DOCUMENT, x: backendDocX, y: backendDocY + 600, title: 'Architecture Design', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
-      { id: 'node-doc-data-model', type: NodeType.DOCUMENT, x: backendDocX + backendDocSpacing, y: backendDocY + 600, title: 'Data Model', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null }
+    // Create and reveal backend documents one by one
+    const backendDocs = [
+      { id: 'node-doc-dev-plan', x: backendDocX, y: backendDocY, title: 'Development Plan', data: MOCK_LUMA_DATA.docDevPlan },
+      { id: 'node-doc-tech-stack', x: backendDocX + backendDocSpacing, y: backendDocY, title: 'Tech Stack', data: MOCK_LUMA_DATA.docTechStack },
+      { id: 'node-doc-architecture', x: backendDocX, y: backendDocY + 600, title: 'Architecture Design', data: MOCK_LUMA_DATA.docArchitecture },
+      { id: 'node-doc-data-model', x: backendDocX + backendDocSpacing, y: backendDocY + 600, title: 'Data Model', data: MOCK_LUMA_DATA.docDataModel }
     ];
 
-    setNodes(prev => [...prev, ...backendDocNodes]);
-    // Mark backend doc nodes as just created
-    backendDocNodes.forEach(n => markNodeAsJustCreated(n.id));
-
-    // Reveal Backend Documents
-    await new Promise(r => setTimeout(r, 1200));
-    setNodes(prev => prev.map(n => {
-      if (n.id === 'node-doc-dev-plan') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDevPlan };
-      if (n.id === 'node-doc-tech-stack') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docTechStack };
-      if (n.id === 'node-doc-architecture') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docArchitecture };
-      if (n.id === 'node-doc-data-model') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDataModel };
-      return n;
-    }));
+    for (const doc of backendDocs) {
+      // Create node in loading state
+      const newNode: CanvasNode = {
+        id: doc.id,
+        type: NodeType.DOCUMENT,
+        x: doc.x,
+        y: doc.y,
+        title: doc.title,
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      };
+      setNodes(prev => [...prev, newNode]);
+      markNodeAsJustCreated(doc.id);
+      
+      // Show file operation and operating state
+      setOperatingNode(doc.id);
+      const opId = addFileOperationMessage('create', 'document', doc.title, doc.id);
+      await new Promise(r => setTimeout(r, 800));
+      updateFileOperationStatus(opId, 'success');
+      
+      // Reveal with data
+      await new Promise(r => setTimeout(r, 200));
+      setNodes(prev => prev.map(n => n.id === doc.id ? { ...n, status: 'done', data: doc.data } : n));
+      setOperatingNode(null);
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     addAIMessage("Architecture documentation complete. Now designing database schemas...");
     updatePlanStatus(planMsgId, 's4', 'done');
@@ -1293,38 +1308,45 @@ const App = () => {
     // Pan to database area
     panTo(cx + 2750, cy + 300, 0.4);
 
-    // Create table nodes with file operation messages
-    const tableId1 = addFileOperationMessage('create', 'table', 'Users', 'node-table-users');
-    await new Promise(r => setTimeout(r, 300));
-    updateFileOperationStatus(tableId1, 'success');
-
-    const tableId2 = addFileOperationMessage('create', 'table', 'Events', 'node-table-events');
-    await new Promise(r => setTimeout(r, 300));
-    updateFileOperationStatus(tableId2, 'success');
-
     addAIMessage("Creating Users and Events tables with relationships...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Create Database nodes
+    // Create Database nodes one by one
     const dbY = backendDocY + 1300;
     const dbSpacingX = 350;
 
-    const databaseNodes: CanvasNode[] = [
-      { id: 'node-table-users', type: NodeType.TABLE, x: backendBaseX + 100, y: dbY, title: 'Users', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: MOCK_LUMA_DATA.tableUsers },
-      { id: 'node-table-events', type: NodeType.TABLE, x: backendBaseX + 100 + dbSpacingX, y: dbY, title: 'Events', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: MOCK_LUMA_DATA.tableEvents }
+    const tables = [
+      { id: 'node-table-users', x: backendBaseX + 100, y: dbY, title: 'Users', data: MOCK_LUMA_DATA.tableUsers },
+      { id: 'node-table-events', x: backendBaseX + 100 + dbSpacingX, y: dbY, title: 'Events', data: MOCK_LUMA_DATA.tableEvents }
     ];
 
-    setNodes(prev => [...prev, ...databaseNodes]);
-    // Mark database nodes as just created
-    databaseNodes.forEach(n => markNodeAsJustCreated(n.id));
-
-    // Reveal database nodes
-    await new Promise(r => setTimeout(r, 800));
-    setNodes(prev => prev.map(n =>
-      n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.TABLE
-        ? { ...n, status: 'done' }
-        : n
-    ));
+    for (const table of tables) {
+      // Create node in loading state
+      const newNode: CanvasNode = {
+        id: table.id,
+        type: NodeType.TABLE,
+        x: table.x,
+        y: table.y,
+        title: table.title,
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      };
+      setNodes(prev => [...prev, newNode]);
+      markNodeAsJustCreated(table.id);
+      
+      // Show file operation and operating state
+      setOperatingNode(table.id);
+      const opId = addFileOperationMessage('create', 'table', table.title, table.id);
+      await new Promise(r => setTimeout(r, 800));
+      updateFileOperationStatus(opId, 'success');
+      
+      // Reveal with data
+      await new Promise(r => setTimeout(r, 200));
+      setNodes(prev => prev.map(n => n.id === table.id ? { ...n, status: 'done', data: table.data } : n));
+      setOperatingNode(null);
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     addAIMessage("Database models defined. Setting up third-party integrations...");
     updatePlanStatus(planMsgId, 's5', 'done');

@@ -843,6 +843,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             title={node.title}
                             data={node.data as any}
                             loading={node.status === 'loading'}
+                            variant={node.variant || 'web'}
                             onRun={() => onRunNode(node.id)}
                             onEditPlan={() => onEditNode(node.id)}
                         />

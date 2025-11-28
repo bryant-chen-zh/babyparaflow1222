@@ -94,6 +94,7 @@ export interface IntegrationData {
 
 export interface CanvasNode extends BaseNode {
   data: DocumentData | WhiteboardData | ScreenData | FlowData | TableData | APIData | IntegrationData | null;
+  variant?: 'web' | 'mobile'; // For ScreenNode
 }
 
 export interface CanvasEdge {
