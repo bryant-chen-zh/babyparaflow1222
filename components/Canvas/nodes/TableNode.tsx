@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table as TableIcon, Maximize2 } from 'lucide-react';
 import { TableData } from '../../../types';
+import { TableSkeleton } from '../../ReactBits';
 
 interface TableNodeProps {
   title?: string;
@@ -11,16 +12,7 @@ interface TableNodeProps {
 
 export const TableNode: React.FC<TableNodeProps> = ({ title, data, loading, onExpand }) => {
   if (loading || !data) {
-    return (
-      <div className="p-4 space-y-3 animate-pulse w-72">
-        <div className="h-4 bg-slate-100 rounded w-1/2"></div>
-        <div className="space-y-2">
-          <div className="h-3 bg-slate-100 rounded"></div>
-          <div className="h-3 bg-slate-100 rounded"></div>
-          <div className="h-3 bg-slate-100 rounded"></div>
-        </div>
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   const previewRows = data.rows.slice(0, 5);

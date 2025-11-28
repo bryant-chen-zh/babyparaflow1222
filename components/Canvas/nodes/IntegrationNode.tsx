@@ -1,6 +1,7 @@
 import React from 'react';
 import { Zap, ExternalLink } from 'lucide-react';
 import { IntegrationData } from '../../../types';
+import { IntegrationSkeleton } from '../../ReactBits';
 
 interface IntegrationNodeProps {
   title: string;
@@ -11,15 +12,7 @@ interface IntegrationNodeProps {
 
 export const IntegrationNode: React.FC<IntegrationNodeProps> = ({ title, data, loading, onEdit }) => {
   if (loading || !data) {
-    return (
-      <div className="h-full flex flex-col bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200 rounded-lg animate-pulse p-4 space-y-3">
-        <div className="h-4 bg-rose-200 rounded w-1/2"></div>
-        <div className="space-y-2">
-          <div className="h-3 bg-rose-100 rounded"></div>
-          <div className="h-3 bg-rose-100 rounded w-3/4"></div>
-        </div>
-      </div>
-    );
+    return <IntegrationSkeleton />;
   }
 
   const handleDocClick = (e: React.MouseEvent) => {

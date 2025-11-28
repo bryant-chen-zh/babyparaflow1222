@@ -252,6 +252,43 @@
       .node-just-created {
         animation: node-pop-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
       }
+      
+      /* Shimmer Loading Animation */
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+      
+      .shimmer {
+        background: linear-gradient(
+          90deg,
+          var(--moxt-fill-1) 0%,
+          var(--moxt-fill-2) 20%,
+          var(--moxt-line-1) 40%,
+          var(--moxt-fill-2) 60%,
+          var(--moxt-fill-1) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.8s ease-in-out infinite;
+      }
+      
+      /* Alternative shimmer for dark backgrounds */
+      .shimmer-dark {
+        background: linear-gradient(
+          90deg,
+          rgba(255,255,255,0.1) 0%,
+          rgba(255,255,255,0.2) 20%,
+          rgba(255,255,255,0.3) 40%,
+          rgba(255,255,255,0.2) 60%,
+          rgba(255,255,255,0.1) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.8s ease-in-out infinite;
+      }
     </style>
   <script type="importmap">
 {

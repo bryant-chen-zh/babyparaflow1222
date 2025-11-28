@@ -3,6 +3,7 @@ import React, { useRef } from 'react';
 import { Play, FileText, Lock, RefreshCw, Smartphone } from 'lucide-react';
 import { ScreenData } from '../../../types';
 import { MOBILE_SCREEN_WIDTH, MOBILE_SCREEN_HEIGHT, WEB_SCREEN_WIDTH, WEB_SCREEN_HEIGHT } from '../../../constants';
+import { ScreenSkeleton } from '../../ReactBits';
 
 interface ScreenNodeProps {
   title?: string;
@@ -22,12 +23,7 @@ export const ScreenNode: React.FC<ScreenNodeProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
 
   if (loading || !data) {
-    return (
-      <div className="w-full h-full bg-white flex flex-col items-center justify-center animate-pulse rounded-xl border border-slate-200">
-         <div className="w-12 h-12 bg-slate-100 rounded-full mb-4"></div>
-         <div className="text-slate-400 text-xs">Generating UI...</div>
-      </div>
-    );
+    return <ScreenSkeleton isWeb={false} />;
   }
 
   const isWeb = data.variant === 'web';

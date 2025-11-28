@@ -2,6 +2,7 @@
 import React from 'react';
 import { Maximize2, GitCommit, GitBranch, MousePointer2 } from 'lucide-react';
 import { WhiteboardData } from '../../../types';
+import { WhiteboardSkeleton } from '../../ReactBits';
 
 interface WhiteboardNodeProps {
   title?: string;
@@ -12,13 +13,7 @@ interface WhiteboardNodeProps {
 
 export const WhiteboardNode: React.FC<WhiteboardNodeProps> = ({ title, data, loading, onEdit }) => {
   if (loading || !data) {
-    return (
-      <div className="w-full h-full flex items-center justify-center animate-pulse p-8">
-         <div className="w-full h-full border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center">
-            <GitCommit className="text-slate-200" size={32} />
-         </div>
-      </div>
-    );
+    return <WhiteboardSkeleton />;
   }
 
   // Calculate bounds for viewBox to center content in preview
