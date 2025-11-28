@@ -866,16 +866,6 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             onRemove={() => onRemoveMention(node.id)}
                         />
                     )}
-
-                    {/* Star particles for operating node */}
-                    {isOperating && (
-                        <>
-                            <div className="star-particle" />
-                            <div className="star-particle" />
-                            <div className="star-particle" />
-                            <div className="star-particle" />
-                        </>
-                    )}
                 </div>
             )})}
 
