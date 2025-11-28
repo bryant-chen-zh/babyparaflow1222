@@ -59,8 +59,9 @@ const getNodeDimensions = (node: CanvasNode) => {
     if (node.width && node.height) return { width: node.width, height: node.height }; // Manual override
 
     if (node.type === NodeType.SCREEN) {
+         // Use node.variant first (for loading state), then fallback to data.variant
          const screenData = node.data as ScreenData;
-         const isWeb = screenData?.variant === 'web';
+         const isWeb = node.variant === 'web' || screenData?.variant === 'web';
          const width = isWeb ? WEB_SCREEN_WIDTH : MOBILE_SCREEN_WIDTH;
          const height = (isWeb ? WEB_SCREEN_HEIGHT : MOBILE_SCREEN_HEIGHT) + 80; // +80 for header/shadows
          return { width, height };

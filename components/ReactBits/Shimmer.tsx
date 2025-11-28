@@ -141,45 +141,22 @@ export function WhiteboardSkeleton() {
         <ShimmerBlock width={80} height={28} rounded="lg" />
       </div>
       
-      {/* Canvas Area with Flow Elements */}
-      <div className="flex-1 bg-moxt-fill-1 relative overflow-hidden">
-        {/* Flowchart-like skeleton elements */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative">
-            {/* Top node */}
-            <ShimmerBlock 
-              width={100} 
-              height={40} 
-              rounded="lg" 
-              className="absolute -top-16 left-1/2 -translate-x-1/2"
-            />
-            {/* Center node */}
-            <ShimmerBlock width={120} height={50} rounded="lg" />
-            {/* Bottom left */}
-            <ShimmerBlock 
-              width={80} 
-              height={35} 
-              rounded="lg" 
-              className="absolute top-20 -left-12"
-            />
-            {/* Bottom right */}
-            <ShimmerBlock 
-              width={80} 
-              height={35} 
-              rounded="lg" 
-              className="absolute top-20 -right-12"
-            />
-            {/* Connecting lines (static) */}
-            <div className="absolute top-0 left-1/2 w-px h-8 bg-moxt-line-2 -translate-x-1/2 -translate-y-8" />
-            <div className="absolute bottom-0 left-1/4 w-px h-8 bg-moxt-line-2 translate-y-4" />
-            <div className="absolute bottom-0 right-1/4 w-px h-8 bg-moxt-line-2 translate-y-4" />
+      {/* Canvas Area - Simple placeholder */}
+      <div className="flex-1 bg-moxt-fill-1 relative overflow-hidden flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          {/* Flow diagram placeholder blocks */}
+          <ShimmerBlock width={140} height={48} rounded="lg" />
+          <ShimmerBlock width={180} height={56} rounded="lg" />
+          <div className="flex gap-8">
+            <ShimmerBlock width={100} height={40} rounded="lg" />
+            <ShimmerBlock width={100} height={40} rounded="lg" />
           </div>
         </div>
       </div>
       
       {/* Footer */}
       <div className="h-8 px-4 border-t border-moxt-line-1 flex items-center gap-2 bg-white">
-        <ShimmerCircle size={12} />
+        <ShimmerBlock width={16} height={16} rounded="sm" />
         <ShimmerBlock width={80} height={10} rounded="sm" />
         <div className="flex-1" />
         <ShimmerBlock width={60} height={10} rounded="sm" />
