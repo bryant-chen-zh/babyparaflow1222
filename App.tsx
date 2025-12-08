@@ -20,7 +20,9 @@ import {
   NODE_SPACING_X,
   WEB_NODE_SPACING_X,
   WEB_NODE_SPACING_Y,
-  INITIAL_ZOOM
+  INITIAL_ZOOM,
+  MIN_ZOOM,
+  MAX_ZOOM
 } from './constants';
 
 // --- Product Decision Questions Configuration ---
@@ -1025,6 +1027,34 @@ const App = () => {
     setCurrentOperatingNodeId(nodeId);
   };
 
+  // 辅助函数：聚焦到节点（设置 operating 状态 + 镜头跟随）
+  // 根据节点宽高动态计算缩放级别，确保节点占据视窗宽高的 50%
+  const focusOnNode = (nodeId: string, nodeX: number, nodeY: number, nodeWidth: number, nodeHeight: number) => {
+    setCurrentOperatingNodeId(nodeId);
+    
+    // 获取视窗尺寸（考虑左侧聊天栏，假设宽度约 420px）
+    const sidebarWidth = 420;
+    const viewportWidth = window.innerWidth - sidebarWidth;
+    const viewportHeight = window.innerHeight;
+    const targetRatio = 0.5; // 节点应占视窗宽高的 50%
+    
+    // 分别计算基于宽度和高度的缩放级别
+    const scaleByWidth = (viewportWidth * targetRatio) / nodeWidth;
+    const scaleByHeight = (viewportHeight * targetRatio) / nodeHeight;
+    
+    // 取较小值，确保节点完全可见
+    let calculatedScale = Math.min(scaleByWidth, scaleByHeight);
+    
+    // 限制缩放范围在 MIN_ZOOM 和 MAX_ZOOM 之间
+    calculatedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, calculatedScale));
+    
+    // 将镜头中心点偏移到节点中心（考虑节点尺寸）
+    const nodeCenterX = nodeX + nodeWidth / 2;
+    const nodeCenterY = nodeY + nodeHeight / 2;
+    
+    panTo(nodeCenterX, nodeCenterY, calculatedScale);
+  };
+
   // 辅助函数：标记节点刚被创建（用于弹出动画）
   const markNodeAsJustCreated = (nodeId: string) => {
     setJustCreatedNodeIds(prev => [...prev, nodeId]);
@@ -1068,37 +1098,37 @@ const App = () => {
     addAIMessage("Creating user personas and product charter based on community event patterns...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Pan Camera to Doc Section
+    // Create Document Nodes (Loading) - 镜头跟随每个新创建的节点
     const docY = cy + DOCUMENT_SECTION_Y_OFFSET;
-    panTo(cx, docY, 0.5);
-
-    // Create Document Nodes (Loading)
     await new Promise(r => setTimeout(r, 600));
-    const docNodes: CanvasNode[] = [
-      { id: 'node-doc-1', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X, y: docY, title: 'User Personas', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-      { id: 'node-doc-2', type: NodeType.DOCUMENT, x: cx, y: docY, title: 'Product Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-      { id: 'node-doc-3', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X, y: docY, title: 'Core Requirements', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-    ];
-    setNodes(prev => [...prev, ...docNodes]);
-    // Mark all doc nodes as just created for pop-in animation
-    docNodes.forEach(n => markNodeAsJustCreated(n.id));
-
-    // Show file operation messages for documents
-    setOperatingNode('node-doc-1');
+    
+    // 创建第一个文档节点并聚焦
+    const doc1: CanvasNode = { id: 'node-doc-1', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X, y: docY, title: 'User Personas', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    setNodes(prev => [...prev, doc1]);
+    markNodeAsJustCreated('node-doc-1');
+    focusOnNode('node-doc-1', doc1.x, doc1.y, 450, 550); // Document: 450 x 550
     const docOpId1 = addFileOperationMessage('create', 'document', 'User Personas', 'node-doc-1');
     await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId1, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 } : n));
 
+    // 创建第二个文档节点并聚焦
     await new Promise(r => setTimeout(r, 300));
-    setOperatingNode('node-doc-2');
+    const doc2: CanvasNode = { id: 'node-doc-2', type: NodeType.DOCUMENT, x: cx, y: docY, title: 'Product Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    setNodes(prev => [...prev, doc2]);
+    markNodeAsJustCreated('node-doc-2');
+    focusOnNode('node-doc-2', doc2.x, doc2.y, 450, 550); // Document: 450 x 550
     const docOpId2 = addFileOperationMessage('create', 'document', 'Product Charter', 'node-doc-2');
     await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId2, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-2' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 } : n));
 
+    // 创建第三个文档节点并聚焦
     await new Promise(r => setTimeout(r, 300));
-    setOperatingNode('node-doc-3');
+    const doc3: CanvasNode = { id: 'node-doc-3', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X, y: docY, title: 'Core Requirements', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    setNodes(prev => [...prev, doc3]);
+    markNodeAsJustCreated('node-doc-3');
+    focusOnNode('node-doc-3', doc3.x, doc3.y, 450, 550); // Document: 450 x 550
     const docOpId3 = addFileOperationMessage('create', 'document', 'Core Requirements', 'node-doc-3');
     await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId3, 'success');
@@ -1127,7 +1157,6 @@ const App = () => {
 
     const chartX = cx + CHART_SECTION_X_OFFSET;
     const chartY = cy - 300;
-    panTo(chartX + 400, chartY + 300, 0.6);
 
     await new Promise(r => setTimeout(r, 600));
     const chartNode: CanvasNode = {
@@ -1136,8 +1165,8 @@ const App = () => {
     setNodes(prev => [...prev, chartNode]);
     markNodeAsJustCreated('node-whiteboard-1');
 
-    // Show file operation message for whiteboard
-    setOperatingNode('node-whiteboard-1');
+    // 聚焦到白板节点
+    focusOnNode('node-whiteboard-1', chartX, chartY, 850, 700); // Whiteboard: 850 x 700
     const wbOpId = addFileOperationMessage('create', 'whiteboard', 'User Flow Chart', 'node-whiteboard-1');
     await new Promise(r => setTimeout(r, 1200));
     updateFileOperationStatus(wbOpId, 'success');
@@ -1161,27 +1190,22 @@ const App = () => {
     await simulateToolCall('read', 'design-system/colors.css', 300);
     await simulateToolCall('grep', 'navigation component', 350);
 
-    // Pan Camera to Screens (Center)
-    panTo(cx, cy + 400, 0.25);
-
-    // Create Skeleton Screens
+    // Create Skeleton Screens - 每个屏幕单独创建并跟随
     await new Promise(r => setTimeout(r, 600));
     const sY1 = cy;
     const sY2 = cy + WEB_NODE_SPACING_Y;
     const sXStart = cx - WEB_NODE_SPACING_X;
 
-    const screenNodes: CanvasNode[] = [
-        { id: 'node-screen-1', type: NodeType.SCREEN, x: sXStart, y: sY1, title: 'Home', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
-        { id: 'node-screen-2', type: NodeType.SCREEN, x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
-        { id: 'node-screen-3', type: NodeType.SCREEN, x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
-        { id: 'node-screen-4', type: NodeType.SCREEN, x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
-        { id: 'node-screen-5', type: NodeType.SCREEN, x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN, variant: 'web' },
+    // 定义所有屏幕节点的配置
+    const screenConfigs = [
+        { id: 'node-screen-1', x: sXStart, y: sY1, title: 'Home', data: MOCK_LUMA_DATA.screen1 },
+        { id: 'node-screen-2', x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', data: MOCK_LUMA_DATA.screen2 },
+        { id: 'node-screen-3', x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', data: MOCK_LUMA_DATA.screen3 },
+        { id: 'node-screen-4', x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', data: MOCK_LUMA_DATA.screen4 },
+        { id: 'node-screen-5', x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', data: MOCK_LUMA_DATA.screen5 },
     ];
-    setNodes(prev => [...prev, ...screenNodes]);
-    // Mark all screen nodes as just created for pop-in animation
-    screenNodes.forEach(n => markNodeAsJustCreated(n.id));
 
-    // Render Edges
+    // Render Edges first
     const flowEdges: CanvasEdge[] = [
       { id: 'e1', fromNode: 'node-screen-1', toNode: 'node-screen-2' },
       { id: 'e2', fromNode: 'node-screen-2', toNode: 'node-screen-3' },
@@ -1193,29 +1217,45 @@ const App = () => {
     addAIMessage("Building Home and Explore pages with hero sections and event grids...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Reveal screens with file operation messages
-    const revealScreen = async (id: string, data: any, screenName: string) => {
-        setOperatingNode(id);
-        const fileOpId = addFileOperationMessage('create', 'screen', screenName, id);
+    // 创建每个屏幕节点并逐个聚焦
+    const createAndRevealScreen = async (config: typeof screenConfigs[0]) => {
+        // 创建 loading 状态的节点
+        const screenNode: CanvasNode = {
+            id: config.id,
+            type: NodeType.SCREEN,
+            x: config.x,
+            y: config.y,
+            title: config.title,
+            status: 'loading',
+            data: null,
+            sectionId: SECTION_IDS.SCREEN,
+            variant: 'web'
+        };
+        setNodes(prev => [...prev, screenNode]);
+        markNodeAsJustCreated(config.id);
+        
+        // 聚焦到新创建的屏幕节点
+        focusOnNode(config.id, config.x, config.y, 1000, 780); // Web Screen: 1000 x 780
+        const fileOpId = addFileOperationMessage('create', 'screen', config.title, config.id);
         await new Promise(r => setTimeout(r, 1000));
         updateFileOperationStatus(fileOpId, 'success');
         await new Promise(r => setTimeout(r, 200));
-        setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
+        setNodes(prev => prev.map(n => n.id === config.id ? { ...n, status: 'done', data: config.data } : n));
         setOperatingNode(null);
         await new Promise(r => setTimeout(r, 300));
     };
 
-    await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1, 'Home');
-    await revealScreen('node-screen-2', MOCK_LUMA_DATA.screen2, 'Explore');
+    await createAndRevealScreen(screenConfigs[0]); // Home
+    await createAndRevealScreen(screenConfigs[1]); // Explore
 
     await simulateToolCall('read', 'templates/form-patterns.tsx', 300);
 
     addAIMessage("Creating Event Detail, form screens, and user profile...");
     await new Promise(r => setTimeout(r, 400));
 
-    await revealScreen('node-screen-3', MOCK_LUMA_DATA.screen3, 'EventDetail');
-    await revealScreen('node-screen-4', MOCK_LUMA_DATA.screen4, 'CreateEvent');
-    await revealScreen('node-screen-5', MOCK_LUMA_DATA.screen5, 'Profile');
+    await createAndRevealScreen(screenConfigs[2]); // Event Detail
+    await createAndRevealScreen(screenConfigs[3]); // Create Event
+    await createAndRevealScreen(screenConfigs[4]); // Profile
 
     addAIMessage("All screens connected with navigation flow. Moving to backend architecture...");
     updatePlanStatus(planMsgId, 's3', 'done');
@@ -1239,9 +1279,6 @@ const App = () => {
     await simulateToolCall('grep', 'RESTful API patterns', 350);
     await simulateToolCall('read', 'docs/architecture-guide.md', 300);
 
-    // Pan to backend documents area
-    panTo(cx + 2800, cy - 100, 0.4);
-
     addAIMessage("Documenting tech stack and data flow...");
     await new Promise(r => setTimeout(r, 400));
 
@@ -1252,7 +1289,7 @@ const App = () => {
     const backendDocY = backendBaseY;
     const backendDocSpacing = 500;
 
-    // Create and reveal backend documents one by one
+    // Create and reveal backend documents one by one - 每个节点都聚焦跟随
     const backendDocs = [
       { id: 'node-doc-dev-plan', x: backendDocX, y: backendDocY, title: 'Development Plan', data: MOCK_LUMA_DATA.docDevPlan },
       { id: 'node-doc-tech-stack', x: backendDocX + backendDocSpacing, y: backendDocY, title: 'Tech Stack', data: MOCK_LUMA_DATA.docTechStack },
@@ -1275,8 +1312,8 @@ const App = () => {
       setNodes(prev => [...prev, newNode]);
       markNodeAsJustCreated(doc.id);
       
-      // Show file operation and operating state
-      setOperatingNode(doc.id);
+      // 聚焦到新创建的后端文档节点
+      focusOnNode(doc.id, doc.x, doc.y, 450, 550); // Document: 450 x 550
       const opId = addFileOperationMessage('create', 'document', doc.title, doc.id);
       await new Promise(r => setTimeout(r, 800));
       updateFileOperationStatus(opId, 'success');
@@ -1305,13 +1342,10 @@ const App = () => {
     await simulateToolCall('read', 'schemas/postgres-types.sql', 300);
     await simulateToolCall('grep', 'foreign key constraints', 350);
 
-    // Pan to database area
-    panTo(cx + 2750, cy + 300, 0.4);
-
     addAIMessage("Creating Users and Events tables with relationships...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Create Database nodes one by one
+    // Create Database nodes one by one - 每个表节点都聚焦跟随
     const dbY = backendDocY + 1300;
     const dbSpacingX = 350;
 
@@ -1335,8 +1369,8 @@ const App = () => {
       setNodes(prev => [...prev, newNode]);
       markNodeAsJustCreated(table.id);
       
-      // Show file operation and operating state
-      setOperatingNode(table.id);
+      // 聚焦到新创建的数据库表节点
+      focusOnNode(table.id, table.x, table.y, 280, 320); // Table: 280 x 320
       const opId = addFileOperationMessage('create', 'table', table.title, table.id);
       await new Promise(r => setTimeout(r, 800));
       updateFileOperationStatus(opId, 'success');
@@ -1365,25 +1399,20 @@ const App = () => {
     await simulateToolCall('grep', 'SendGrid API', 300);
     await simulateToolCall('read', 'config/services.json', 350);
 
-    // Pan to integration area
-    panTo(cx + 2700, cy + 600, 0.35);
-
     addAIMessage("Setting up email notifications and calendar sync...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Create Integration nodes (below databases)
+    // Create Integration nodes (below databases) - 每个集成节点都聚焦跟随
     const integrationX = backendBaseX + 100;
     const integrationY = dbY + 400;
 
-    const integrationNodes: CanvasNode[] = [
+    // 创建并逐个聚焦 Integration 节点
+    const integrationConfigs = [
       {
         id: 'node-integration-sendgrid',
-        type: NodeType.INTEGRATION,
         x: integrationX,
         y: integrationY,
         title: 'SendGrid',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
         data: {
           provider: 'SendGrid',
           category: 'Email',
@@ -1395,12 +1424,9 @@ const App = () => {
       },
       {
         id: 'node-integration-googlecal',
-        type: NodeType.INTEGRATION,
         x: integrationX + 380,
         y: integrationY,
         title: 'Google Calendar',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
         data: {
           provider: 'Google Calendar API',
           category: 'Calendar',
@@ -1412,29 +1438,33 @@ const App = () => {
       }
     ];
 
-    setNodes(prev => [...prev, ...integrationNodes]);
-    // Mark integration nodes as just created
-    integrationNodes.forEach(n => markNodeAsJustCreated(n.id));
-
-    // Show file operation messages for integrations
-    setOperatingNode('node-integration-sendgrid');
-    const intId1 = addFileOperationMessage('create', 'integration', 'SendGrid', 'node-integration-sendgrid');
-    await new Promise(r => setTimeout(r, 800));
-    updateFileOperationStatus(intId1, 'success');
-
-    await new Promise(r => setTimeout(r, 300));
-    setOperatingNode('node-integration-googlecal');
-    const intId2 = addFileOperationMessage('create', 'integration', 'Google Calendar', 'node-integration-googlecal');
-    await new Promise(r => setTimeout(r, 800));
-    updateFileOperationStatus(intId2, 'success');
-    setOperatingNode(null);
-
-    // Reveal integrations
-    setNodes(prev => prev.map(n =>
-      n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.INTEGRATION
-        ? { ...n, status: 'done' }
-        : n
-    ));
+    for (const config of integrationConfigs) {
+      // 创建 loading 状态的节点
+      const newNode: CanvasNode = {
+        id: config.id,
+        type: NodeType.INTEGRATION,
+        x: config.x,
+        y: config.y,
+        title: config.title,
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: config.data
+      };
+      setNodes(prev => [...prev, newNode]);
+      markNodeAsJustCreated(config.id);
+      
+      // 聚焦到新创建的集成节点
+      focusOnNode(config.id, config.x, config.y, 320, 240); // Integration: 320 x 240
+      const opId = addFileOperationMessage('create', 'integration', config.title, config.id);
+      await new Promise(r => setTimeout(r, 800));
+      updateFileOperationStatus(opId, 'success');
+      
+      // Reveal with done status
+      await new Promise(r => setTimeout(r, 200));
+      setNodes(prev => prev.map(n => n.id === config.id ? { ...n, status: 'done' } : n));
+      setOperatingNode(null);
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     addAIMessage("All integrations configured successfully.");
     

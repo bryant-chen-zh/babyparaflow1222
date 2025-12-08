@@ -166,11 +166,20 @@ export function WhiteboardSkeleton() {
 }
 
 // Screen Node Loading Skeleton
+// 使用与 ScreenNode 相同的尺寸常量
+const SKELETON_WEB_WIDTH = 1000;
+const SKELETON_WEB_HEIGHT = 700;
+const SKELETON_MOBILE_WIDTH = 320;
+const SKELETON_MOBILE_HEIGHT = 640;
+
 export function ScreenSkeleton({ isWeb = false }: { isWeb?: boolean }) {
+  const width = isWeb ? SKELETON_WEB_WIDTH : SKELETON_MOBILE_WIDTH;
+  const height = isWeb ? SKELETON_WEB_HEIGHT : SKELETON_MOBILE_HEIGHT;
+  
   return (
     <div className="w-full h-full flex flex-col items-center">
       {/* Header */}
-      <div className="w-full flex items-center justify-between mb-3 px-1" style={{ maxWidth: isWeb ? 700 : 320 }}>
+      <div className="w-full flex items-center justify-between mb-3 px-1" style={{ maxWidth: width }}>
         <div className="flex items-center gap-3">
           <ShimmerBlock width={40} height={40} rounded="lg" />
           <div className="space-y-1.5">
@@ -189,7 +198,7 @@ export function ScreenSkeleton({ isWeb = false }: { isWeb?: boolean }) {
         className={`flex flex-col overflow-hidden shadow-xl bg-white ${
           isWeb ? 'rounded-lg border border-moxt-line-2' : 'rounded-[32px] border-4 border-moxt-text-1'
         }`}
-        style={{ width: isWeb ? 700 : 320, height: isWeb ? 450 : 600 }}
+        style={{ width, height }}
       >
         {/* Browser Chrome / Mobile Status */}
         {isWeb ? (
