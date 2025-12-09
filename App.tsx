@@ -730,6 +730,11 @@ const App = () => {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    // 从 localStorage 恢复用户偏好
+    const saved = localStorage.getItem('sidebarWidth');
+    return saved ? parseInt(saved, 10) : 420;
+  });
   const [simulationStarted, setSimulationStarted] = useState(false);
 
   // 新增状态：问题流程和执行控制
@@ -1689,6 +1694,12 @@ const App = () => {
     setMentionedScreenElements({});
   };
 
+  // Sidebar width change handler with localStorage persistence
+  const handleSidebarWidthChange = (width: number) => {
+    setSidebarWidth(width);
+    localStorage.setItem('sidebarWidth', width.toString());
+  };
+
   // ESC key to exit canvas selection mode
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1709,6 +1720,8 @@ const App = () => {
         isProcessing={isProcessing}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        width={sidebarWidth}
+        onWidthChange={handleSidebarWidthChange}
         nodes={nodes}
         sections={sections}
         onEnterCanvasSelection={handleEnterCanvasSelection}

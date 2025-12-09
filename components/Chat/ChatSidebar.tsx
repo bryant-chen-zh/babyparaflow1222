@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare, ImagePlus, X, ChevronUp, ChevronDown, Plus, History, Search, Pencil, Trash2, Check } from 'lucide-react';
+import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare, ImagePlus, X, ChevronUp, ChevronDown, Plus, History, Search, Pencil, Trash2, Check, ArrowUp, CircleArrowRight } from 'lucide-react';
 import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
 import { ToolCallMessage } from './ToolCallMessage';
 import { QuestionCard } from './QuestionCard';
@@ -9,6 +9,10 @@ import { FileOperationCard } from './FileOperationCard';
 import { ThinkingMessage } from './ThinkingMessage';
 import { parseMarkdown, renderInlineStyles, Block } from '../../utils/markdownUtils';
 
+// Sidebar width constraints
+const MIN_SIDEBAR_WIDTH = 320;
+const MAX_SIDEBAR_WIDTH = 600;
+
 interface ChatSidebarProps {
   messages: ChatMessage[];
   onSendMessage: (content: string, images?: string[]) => void;
@@ -16,6 +20,8 @@ interface ChatSidebarProps {
   isProcessing: boolean;
   isOpen: boolean;
   onToggle: () => void;
+  width?: number;
+  onWidthChange?: (width: number) => void;
   nodes: CanvasNode[];
   sections: CanvasSection[];
   onEnterCanvasSelection: () => void;
@@ -80,6 +86,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   isProcessing,
   isOpen,
   onToggle,
+  width = 420,
+  onWidthChange,
   nodes,
   sections,
   onEnterCanvasSelection,
@@ -99,6 +107,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const [input, setInput] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -182,6 +191,39 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showHistory]);
+
+  // Resize drag handling
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, e.clientX));
+      onWidthChange?.(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, onWidthChange]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
 
   const MAX_IMAGES = 4;
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -698,7 +740,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   // Expanded State
   return (
-    <div className="w-[420px] h-full bg-moxt-fill-white border-r border-moxt-line-1 flex flex-col z-20 flex-shrink-0">
+    <div 
+      className="h-full bg-moxt-fill-white border-r border-moxt-line-1 flex flex-col z-20 flex-shrink-0 relative"
+      style={{ width: `${width}px` }}
+    >
+      {/* Resize Handle */}
+      <div
+        className={`absolute top-0 right-0 w-1 h-full cursor-col-resize z-30 transition-colors hover:bg-moxt-brand-7/30 ${isResizing ? 'bg-moxt-brand-7/50' : 'bg-transparent'}`}
+        onMouseDown={handleResizeStart}
+      />
       <div className="px-4 py-3 border-b border-moxt-line-1 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-moxt-brand-7 rounded-lg flex items-center justify-center">
@@ -975,7 +1025,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         {messages.map((msg) => {
           // Tool call message
           if (msg.type === 'tool_call' && msg.toolCall) {
-            return <ToolCallMessage key={msg.id} toolCall={msg.toolCall} />;
+            return <ToolCallMessage toolCall={msg.toolCall} />;
           }
 
           // Question message - only render collapsed questions in message list
@@ -987,7 +1037,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             }
             return (
               <QuestionCard
-                key={msg.id}
                 question={msg.question}
                 onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
                 onSkip={() => onSkipQuestion?.(msg.id)}
@@ -1001,7 +1050,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           if (msg.type === 'file_operation' && msg.fileOperation) {
             return (
               <FileOperationCard
-                key={msg.id}
                 fileOperation={msg.fileOperation}
                 onLocate={onLocateNode}
               />
@@ -1010,7 +1058,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
           // Thinking message
           if (msg.type === 'thinking' && msg.thinking) {
-            return <ThinkingMessage key={msg.id} thinking={msg.thinking} />;
+            return <ThinkingMessage thinking={msg.thinking} />;
           }
 
           // User and AI messages
@@ -1110,25 +1158,25 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                             <>
                               <div className="px-4 py-3 border-t border-moxt-line-1" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {msg.plan.map(step => (
-                                  <div key={step.id} className="flex items-start gap-3">
+                                  <div key={step.id} className="flex items-start gap-2">
                                       {step.status === 'pending' && (
-                                        <div className="w-5 h-5 rounded-full border-2 border-dashed border-moxt-line-2 flex-shrink-0 mt-0.5" />
+                                        <CircleDashed size={16} className="text-moxt-text-4 flex-shrink-0 mt-1" />
                                       )}
                                       {step.status === 'loading' && (
-                                        <Loader2 size={20} className="text-moxt-brand-7 animate-spin flex-shrink-0 mt-0.5" />
+                                        <CircleArrowRight size={16} className="text-moxt-brand-7 flex-shrink-0 mt-1" />
                                       )}
                                       {step.status === 'done' && (
-                                        <CheckCircle2 size={20} className="text-moxt-brand-7 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle2 size={16} className="text-moxt-brand-7 flex-shrink-0 mt-1" />
                                       )}
 
                                       <span 
                                         style={{
-                                          color: step.status === 'done' ? '#9CA3AF' : '#0D0E13',
+                                          color: step.status === 'pending' ? '#9CA3AF' : '#0D0E13',
                                           fontFamily: 'Inter, sans-serif',
                                           fontSize: '13px',
                                           fontWeight: 400,
                                           lineHeight: '24px',
-                                          textDecoration: step.status === 'done' ? 'line-through' : 'none'
+                                          textDecoration: 'none'
                                         }}
                                       >
                                           {step.label}
@@ -1139,13 +1187,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
                               {/* Footer with Button */}
                               {!msg.executionStarted && onStartExecution && (
-                                <div className="px-4 py-3 border-t border-moxt-line-1">
+                                <div className="px-3 py-2 border-t border-moxt-line-1 bg-moxt-fill-1/30 flex items-center justify-between">
+                                  <span className="text-12 text-moxt-text-2 pl-1 font-medium">
+                                    Ready to start
+                                  </span>
                                   <button
                                     onClick={() => onStartExecution(msg.id)}
-                                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-moxt-brand-7 hover:bg-moxt-brand-7/90 text-white text-13 font-semibold rounded-lg transition-colors w-full shadow-sm"
+                                    className="px-3 py-1.5 bg-moxt-brand-7 hover:bg-moxt-brand-7/90 text-white text-12 font-medium rounded-lg transition-colors shadow-sm"
                                   >
-                                    <Play size={14} fill="currentColor" />
-                                    <span>Start Execution</span>
+                                    Start
                                   </button>
                                 </div>
                               )}
@@ -1172,7 +1222,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         {/* Active Question Card - shown above input */}
         {messages.filter(msg => msg.type === 'question' && msg.question && !msg.collapsed).map(msg => (
           <QuestionCard
-            key={`input-${msg.id}`}
             question={msg.question!}
             onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
             onSkip={() => onSkipQuestion?.(msg.id)}
@@ -1312,9 +1361,9 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             <button
               type="submit"
               disabled={(!input.trim() && images.length === 0) || isProcessing}
-              className="p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-md transition-colors"
+              className="p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-lg transition-colors"
             >
-              <Send size={18} />
+              <ArrowUp size={16} strokeWidth={2.5} />
             </button>
           </div>
         </form>

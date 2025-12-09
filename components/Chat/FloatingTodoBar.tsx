@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Loader2, ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp, Circle, CheckCircle2, CircleArrowRight, CircleDashed } from 'lucide-react';
 import { PlanStep } from '../../types';
 
 interface FloatingTodoBarProps {
@@ -52,9 +52,9 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
   const getStatusIcon = (status: 'pending' | 'loading' | 'done') => {
     switch (status) {
       case 'pending':
-        return <Circle className="w-3.5 h-3.5 text-moxt-text-4 flex-shrink-0" strokeWidth={1.5} />;
+        return <CircleDashed className="w-3.5 h-3.5 text-moxt-text-4 flex-shrink-0" strokeWidth={1.5} />;
       case 'loading':
-        return <Loader2 className="w-3.5 h-3.5 animate-spin text-moxt-text-2 flex-shrink-0" strokeWidth={1.5} />;
+        return <CircleArrowRight className="w-3.5 h-3.5 text-moxt-brand-7 flex-shrink-0" strokeWidth={1.5} />;
       case 'done':
         return <CheckCircle2 className="text-moxt-brand-7 flex-shrink-0" size={14} />;
     }
@@ -155,7 +155,7 @@ export function FloatingTodoBar({ plan, onToggle }: FloatingTodoBarProps) {
                       isJustCompleted
                         ? 'text-moxt-text-1 font-semibold' :
                       task.status === 'done'
-                        ? 'text-moxt-text-4 line-through' :
+                        ? 'text-moxt-text-1' :
                       task.status === 'loading'
                         ? 'text-moxt-text-1 font-semibold' :
                         'text-moxt-text-2'
