@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChatSidebar } from './components/Chat/ChatSidebar';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
+import { AgentStatusPanel } from './components/Canvas/AgentStatusPanel';
 import { MarkdownModal } from './components/Editor/MarkdownModal';
 import { WhiteboardModal } from './components/Editor/WhiteboardModal';
 import { ImmersiveView } from './components/Preview/ImmersiveView';
@@ -19,7 +20,9 @@ import {
   NODE_SPACING_X,
   WEB_NODE_SPACING_X,
   WEB_NODE_SPACING_Y,
-  INITIAL_ZOOM
+  INITIAL_ZOOM,
+  MIN_ZOOM,
+  MAX_ZOOM
 } from './constants';
 
 // --- Product Decision Questions Configuration ---
@@ -727,6 +730,11 @@ const App = () => {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    // 从 localStorage 恢复用户偏好
+    const saved = localStorage.getItem('sidebarWidth');
+    return saved ? parseInt(saved, 10) : 420;
+  });
   const [simulationStarted, setSimulationStarted] = useState(false);
 
   // 新增状态：问题流程和执行控制
@@ -734,6 +742,12 @@ const App = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionsCompleted, setQuestionsCompleted] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<PlanStep[] | null>(null);
+
+  // Agent 进程可视化状态
+  const [agentIsRunning, setAgentIsRunning] = useState(false);
+  const [currentOperatingNodeId, setCurrentOperatingNodeId] = useState<string | null>(null);
+  const [justCreatedNodeIds, setJustCreatedNodeIds] = useState<string[]>([]);
+  const [currentTaskName, setCurrentTaskName] = useState<string>('');
 
   // Canvas @ Mention State
   const [isCanvasSelectionMode, setIsCanvasSelectionMode] = useState(false);
@@ -1013,16 +1027,62 @@ const App = () => {
     updateToolCallStatus(msgId, 'success');
   };
 
+  // 辅助函数：标记节点为正在操作
+  const setOperatingNode = (nodeId: string | null) => {
+    setCurrentOperatingNodeId(nodeId);
+  };
+
+  // 辅助函数：聚焦到节点（设置 operating 状态 + 镜头跟随）
+  // 根据节点宽高动态计算缩放级别，确保节点占据视窗宽高的 50%
+  const focusOnNode = (nodeId: string, nodeX: number, nodeY: number, nodeWidth: number, nodeHeight: number) => {
+    setCurrentOperatingNodeId(nodeId);
+    
+    // 获取视窗尺寸（考虑左侧聊天栏，假设宽度约 420px）
+    const sidebarWidth = 420;
+    const viewportWidth = window.innerWidth - sidebarWidth;
+    const viewportHeight = window.innerHeight;
+    const targetRatio = 0.5; // 节点应占视窗宽高的 50%
+    
+    // 分别计算基于宽度和高度的缩放级别
+    const scaleByWidth = (viewportWidth * targetRatio) / nodeWidth;
+    const scaleByHeight = (viewportHeight * targetRatio) / nodeHeight;
+    
+    // 取较小值，确保节点完全可见
+    let calculatedScale = Math.min(scaleByWidth, scaleByHeight);
+    
+    // 限制缩放范围在 MIN_ZOOM 和 MAX_ZOOM 之间
+    calculatedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, calculatedScale));
+    
+    // 将镜头中心点偏移到节点中心（考虑节点尺寸）
+    const nodeCenterX = nodeX + nodeWidth / 2;
+    const nodeCenterY = nodeY + nodeHeight / 2;
+    
+    panTo(nodeCenterX, nodeCenterY, calculatedScale);
+  };
+
+  // 辅助函数：标记节点刚被创建（用于弹出动画）
+  const markNodeAsJustCreated = (nodeId: string) => {
+    setJustCreatedNodeIds(prev => [...prev, nodeId]);
+    // 动画结束后移除标记
+    setTimeout(() => {
+      setJustCreatedNodeIds(prev => prev.filter(id => id !== nodeId));
+    }, 600);
+  };
+
   // 执行工作流（增强版：穿插更多工具调用和 AI 消息）
   const executeWorkflow = async (planMsgId: string) => {
     const cx = LAYOUT_CENTER_X;
     const cy = LAYOUT_CENTER_Y;
+
+    // 开始 Agent 运行
+    setAgentIsRunning(true);
 
     // ============================================
     // PHASE 1: Drafting Product Strategy
     // ============================================
     await new Promise(r => setTimeout(r, 600));
     updatePlanStatus(planMsgId, 's1', 'loading');
+    setCurrentTaskName('Drafting Product Strategy');
     
     // Read todo list first
     await simulateToolCall('todo_read', '', 300);
@@ -1043,34 +1103,42 @@ const App = () => {
     addAIMessage("Creating user personas and product charter based on community event patterns...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Pan Camera to Doc Section
+    // Create Document Nodes (Loading) - 镜头跟随每个新创建的节点
     const docY = cy + DOCUMENT_SECTION_Y_OFFSET;
-    panTo(cx, docY, 0.5);
-
-    // Create Document Nodes (Loading)
     await new Promise(r => setTimeout(r, 600));
-    const docNodes: CanvasNode[] = [
-      { id: 'node-doc-1', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X, y: docY, title: 'User Personas', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-      { id: 'node-doc-2', type: NodeType.DOCUMENT, x: cx, y: docY, title: 'Product Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-      { id: 'node-doc-3', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X, y: docY, title: 'Core Requirements', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT },
-    ];
-    setNodes(prev => [...prev, ...docNodes]);
-
-    // Show file operation messages for documents
+    
+    // 创建第一个文档节点并聚焦
+    const doc1: CanvasNode = { id: 'node-doc-1', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X, y: docY, title: 'User Personas', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    setNodes(prev => [...prev, doc1]);
+    markNodeAsJustCreated('node-doc-1');
+    focusOnNode('node-doc-1', doc1.x, doc1.y, 450, 550); // Document: 450 x 550
     const docOpId1 = addFileOperationMessage('create', 'document', 'User Personas', 'node-doc-1');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId1, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc1 } : n));
 
+    // 创建第二个文档节点并聚焦
+    await new Promise(r => setTimeout(r, 300));
+    const doc2: CanvasNode = { id: 'node-doc-2', type: NodeType.DOCUMENT, x: cx, y: docY, title: 'Product Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    setNodes(prev => [...prev, doc2]);
+    markNodeAsJustCreated('node-doc-2');
+    focusOnNode('node-doc-2', doc2.x, doc2.y, 450, 550); // Document: 450 x 550
     const docOpId2 = addFileOperationMessage('create', 'document', 'Product Charter', 'node-doc-2');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId2, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-2' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc2 } : n));
 
+    // 创建第三个文档节点并聚焦
+    await new Promise(r => setTimeout(r, 300));
+    const doc3: CanvasNode = { id: 'node-doc-3', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X, y: docY, title: 'Core Requirements', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    setNodes(prev => [...prev, doc3]);
+    markNodeAsJustCreated('node-doc-3');
+    focusOnNode('node-doc-3', doc3.x, doc3.y, 450, 550); // Document: 450 x 550
     const docOpId3 = addFileOperationMessage('create', 'document', 'Core Requirements', 'node-doc-3');
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(docOpId3, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-doc-3' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.doc3 } : n));
+    setOperatingNode(null);
 
     addAIMessage("Product strategy documents ready. Moving to user flow design...");
     updatePlanStatus(planMsgId, 's1', 'done');
@@ -1080,6 +1148,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's2', 'loading');
+    setCurrentTaskName('Designing User Flow');
 
     addAIMessage("Mapping user journey based on your requirements...");
     await new Promise(r => setTimeout(r, 400));
@@ -1093,19 +1162,21 @@ const App = () => {
 
     const chartX = cx + CHART_SECTION_X_OFFSET;
     const chartY = cy - 300;
-    panTo(chartX + 400, chartY + 300, 0.6);
 
     await new Promise(r => setTimeout(r, 600));
     const chartNode: CanvasNode = {
         id: 'node-whiteboard-1', type: NodeType.WHITEBOARD, x: chartX, y: chartY, title: 'User Flow Chart', status: 'loading', data: null, sectionId: SECTION_IDS.CHART
     };
     setNodes(prev => [...prev, chartNode]);
+    markNodeAsJustCreated('node-whiteboard-1');
 
-    // Show file operation message for whiteboard
+    // 聚焦到白板节点
+    focusOnNode('node-whiteboard-1', chartX, chartY, 850, 700); // Whiteboard: 850 x 700
     const wbOpId = addFileOperationMessage('create', 'whiteboard', 'User Flow Chart', 'node-whiteboard-1');
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1200));
     updateFileOperationStatus(wbOpId, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-whiteboard-1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.whiteboard } : n));
+    setOperatingNode(null);
 
     addAIMessage("User flow diagram complete. Now designing the UI screens...");
     updatePlanStatus(planMsgId, 's2', 'done');
@@ -1115,6 +1186,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's3', 'loading');
+    setCurrentTaskName('Generating Prototype');
 
     addAIMessage("Designing high-fidelity screens with Tailwind CSS...");
     await new Promise(r => setTimeout(r, 400));
@@ -1123,25 +1195,22 @@ const App = () => {
     await simulateToolCall('read', 'design-system/colors.css', 300);
     await simulateToolCall('grep', 'navigation component', 350);
 
-    // Pan Camera to Screens (Center)
-    panTo(cx, cy + 400, 0.25);
-
-    // Create Skeleton Screens
+    // Create Skeleton Screens - 每个屏幕单独创建并跟随
     await new Promise(r => setTimeout(r, 600));
     const sY1 = cy;
     const sY2 = cy + WEB_NODE_SPACING_Y;
     const sXStart = cx - WEB_NODE_SPACING_X;
 
-    const screenNodes: CanvasNode[] = [
-        { id: 'node-screen-1', type: NodeType.SCREEN, x: sXStart, y: sY1, title: 'Home', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-2', type: NodeType.SCREEN, x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-3', type: NodeType.SCREEN, x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-4', type: NodeType.SCREEN, x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
-        { id: 'node-screen-5', type: NodeType.SCREEN, x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', status: 'loading', data: null, sectionId: SECTION_IDS.SCREEN },
+    // 定义所有屏幕节点的配置
+    const screenConfigs = [
+        { id: 'node-screen-1', x: sXStart, y: sY1, title: 'Home', data: MOCK_LUMA_DATA.screen1 },
+        { id: 'node-screen-2', x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', data: MOCK_LUMA_DATA.screen2 },
+        { id: 'node-screen-3', x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', data: MOCK_LUMA_DATA.screen3 },
+        { id: 'node-screen-4', x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', data: MOCK_LUMA_DATA.screen4 },
+        { id: 'node-screen-5', x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', data: MOCK_LUMA_DATA.screen5 },
     ];
-    setNodes(prev => [...prev, ...screenNodes]);
 
-    // Render Edges
+    // Render Edges first
     const flowEdges: CanvasEdge[] = [
       { id: 'e1', fromNode: 'node-screen-1', toNode: 'node-screen-2' },
       { id: 'e2', fromNode: 'node-screen-2', toNode: 'node-screen-3' },
@@ -1153,26 +1222,45 @@ const App = () => {
     addAIMessage("Building Home and Explore pages with hero sections and event grids...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Reveal screens with file operation messages
-    const revealScreen = async (id: string, data: any, screenName: string) => {
-        const fileOpId = addFileOperationMessage('create', 'screen', screenName, id);
-        await new Promise(r => setTimeout(r, 400));
+    // 创建每个屏幕节点并逐个聚焦
+    const createAndRevealScreen = async (config: typeof screenConfigs[0]) => {
+        // 创建 loading 状态的节点
+        const screenNode: CanvasNode = {
+            id: config.id,
+            type: NodeType.SCREEN,
+            x: config.x,
+            y: config.y,
+            title: config.title,
+            status: 'loading',
+            data: null,
+            sectionId: SECTION_IDS.SCREEN,
+            variant: 'web'
+        };
+        setNodes(prev => [...prev, screenNode]);
+        markNodeAsJustCreated(config.id);
+        
+        // 聚焦到新创建的屏幕节点
+        focusOnNode(config.id, config.x, config.y, 1000, 780); // Web Screen: 1000 x 780
+        const fileOpId = addFileOperationMessage('create', 'screen', config.title, config.id);
+        await new Promise(r => setTimeout(r, 1000));
         updateFileOperationStatus(fileOpId, 'success');
-        await new Promise(r => setTimeout(r, 100));
-        setNodes(prev => prev.map(n => n.id === id ? { ...n, status: 'done', data } : n));
+        await new Promise(r => setTimeout(r, 200));
+        setNodes(prev => prev.map(n => n.id === config.id ? { ...n, status: 'done', data: config.data } : n));
+        setOperatingNode(null);
+        await new Promise(r => setTimeout(r, 300));
     };
 
-    await revealScreen('node-screen-1', MOCK_LUMA_DATA.screen1, 'Home');
-    await revealScreen('node-screen-2', MOCK_LUMA_DATA.screen2, 'Explore');
+    await createAndRevealScreen(screenConfigs[0]); // Home
+    await createAndRevealScreen(screenConfigs[1]); // Explore
 
     await simulateToolCall('read', 'templates/form-patterns.tsx', 300);
 
     addAIMessage("Creating Event Detail, form screens, and user profile...");
     await new Promise(r => setTimeout(r, 400));
 
-    await revealScreen('node-screen-3', MOCK_LUMA_DATA.screen3, 'EventDetail');
-    await revealScreen('node-screen-4', MOCK_LUMA_DATA.screen4, 'CreateEvent');
-    await revealScreen('node-screen-5', MOCK_LUMA_DATA.screen5, 'Profile');
+    await createAndRevealScreen(screenConfigs[2]); // Event Detail
+    await createAndRevealScreen(screenConfigs[3]); // Create Event
+    await createAndRevealScreen(screenConfigs[4]); // Profile
 
     addAIMessage("All screens connected with navigation flow. Moving to backend architecture...");
     updatePlanStatus(planMsgId, 's3', 'done');
@@ -1182,6 +1270,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 1000));
     updatePlanStatus(planMsgId, 's4', 'loading');
+    setCurrentTaskName('Planning Backend Architecture');
 
     // Show thinking for architecture decisions
     const thinkingId2 = addThinkingMessage();
@@ -1195,9 +1284,6 @@ const App = () => {
     await simulateToolCall('grep', 'RESTful API patterns', 350);
     await simulateToolCall('read', 'docs/architecture-guide.md', 300);
 
-    // Pan to backend documents area
-    panTo(cx + 2800, cy - 100, 0.4);
-
     addAIMessage("Documenting tech stack and data flow...");
     await new Promise(r => setTimeout(r, 400));
 
@@ -1208,24 +1294,41 @@ const App = () => {
     const backendDocY = backendBaseY;
     const backendDocSpacing = 500;
 
-    const backendDocNodes: CanvasNode[] = [
-      { id: 'node-doc-dev-plan', type: NodeType.DOCUMENT, x: backendDocX, y: backendDocY, title: 'Development Plan', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
-      { id: 'node-doc-tech-stack', type: NodeType.DOCUMENT, x: backendDocX + backendDocSpacing, y: backendDocY, title: 'Tech Stack', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
-      { id: 'node-doc-architecture', type: NodeType.DOCUMENT, x: backendDocX, y: backendDocY + 600, title: 'Architecture Design', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null },
-      { id: 'node-doc-data-model', type: NodeType.DOCUMENT, x: backendDocX + backendDocSpacing, y: backendDocY + 600, title: 'Data Model', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: null }
+    // Create and reveal backend documents one by one - 每个节点都聚焦跟随
+    const backendDocs = [
+      { id: 'node-doc-dev-plan', x: backendDocX, y: backendDocY, title: 'Development Plan', data: MOCK_LUMA_DATA.docDevPlan },
+      { id: 'node-doc-tech-stack', x: backendDocX + backendDocSpacing, y: backendDocY, title: 'Tech Stack', data: MOCK_LUMA_DATA.docTechStack },
+      { id: 'node-doc-architecture', x: backendDocX, y: backendDocY + 600, title: 'Architecture Design', data: MOCK_LUMA_DATA.docArchitecture },
+      { id: 'node-doc-data-model', x: backendDocX + backendDocSpacing, y: backendDocY + 600, title: 'Data Model', data: MOCK_LUMA_DATA.docDataModel }
     ];
 
-    setNodes(prev => [...prev, ...backendDocNodes]);
-
-    // Reveal Backend Documents
-    await new Promise(r => setTimeout(r, 1200));
-    setNodes(prev => prev.map(n => {
-      if (n.id === 'node-doc-dev-plan') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDevPlan };
-      if (n.id === 'node-doc-tech-stack') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docTechStack };
-      if (n.id === 'node-doc-architecture') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docArchitecture };
-      if (n.id === 'node-doc-data-model') return { ...n, status: 'done', data: MOCK_LUMA_DATA.docDataModel };
-      return n;
-    }));
+    for (const doc of backendDocs) {
+      // Create node in loading state
+      const newNode: CanvasNode = {
+        id: doc.id,
+        type: NodeType.DOCUMENT,
+        x: doc.x,
+        y: doc.y,
+        title: doc.title,
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      };
+      setNodes(prev => [...prev, newNode]);
+      markNodeAsJustCreated(doc.id);
+      
+      // 聚焦到新创建的后端文档节点
+      focusOnNode(doc.id, doc.x, doc.y, 450, 550); // Document: 450 x 550
+      const opId = addFileOperationMessage('create', 'document', doc.title, doc.id);
+      await new Promise(r => setTimeout(r, 800));
+      updateFileOperationStatus(opId, 'success');
+      
+      // Reveal with data
+      await new Promise(r => setTimeout(r, 200));
+      setNodes(prev => prev.map(n => n.id === doc.id ? { ...n, status: 'done', data: doc.data } : n));
+      setOperatingNode(null);
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     addAIMessage("Architecture documentation complete. Now designing database schemas...");
     updatePlanStatus(planMsgId, 's4', 'done');
@@ -1235,6 +1338,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 1000));
     updatePlanStatus(planMsgId, 's5', 'loading');
+    setCurrentTaskName('Designing Data & Resources');
 
     addAIMessage("Modeling database schemas for PostgreSQL...");
     await new Promise(r => setTimeout(r, 400));
@@ -1243,39 +1347,45 @@ const App = () => {
     await simulateToolCall('read', 'schemas/postgres-types.sql', 300);
     await simulateToolCall('grep', 'foreign key constraints', 350);
 
-    // Pan to database area
-    panTo(cx + 2750, cy + 300, 0.4);
-
-    // Create table nodes with file operation messages
-    const tableId1 = addFileOperationMessage('create', 'table', 'Users', 'node-table-users');
-    await new Promise(r => setTimeout(r, 300));
-    updateFileOperationStatus(tableId1, 'success');
-
-    const tableId2 = addFileOperationMessage('create', 'table', 'Events', 'node-table-events');
-    await new Promise(r => setTimeout(r, 300));
-    updateFileOperationStatus(tableId2, 'success');
-
     addAIMessage("Creating Users and Events tables with relationships...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Create Database nodes
+    // Create Database nodes one by one - 每个表节点都聚焦跟随
     const dbY = backendDocY + 1300;
     const dbSpacingX = 350;
 
-    const databaseNodes: CanvasNode[] = [
-      { id: 'node-table-users', type: NodeType.TABLE, x: backendBaseX + 100, y: dbY, title: 'Users', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: MOCK_LUMA_DATA.tableUsers },
-      { id: 'node-table-events', type: NodeType.TABLE, x: backendBaseX + 100 + dbSpacingX, y: dbY, title: 'Events', status: 'loading', sectionId: SECTION_IDS.BACKEND, data: MOCK_LUMA_DATA.tableEvents }
+    const tables = [
+      { id: 'node-table-users', x: backendBaseX + 100, y: dbY, title: 'Users', data: MOCK_LUMA_DATA.tableUsers },
+      { id: 'node-table-events', x: backendBaseX + 100 + dbSpacingX, y: dbY, title: 'Events', data: MOCK_LUMA_DATA.tableEvents }
     ];
 
-    setNodes(prev => [...prev, ...databaseNodes]);
-
-    // Reveal database nodes
-    await new Promise(r => setTimeout(r, 800));
-    setNodes(prev => prev.map(n =>
-      n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.TABLE
-        ? { ...n, status: 'done' }
-        : n
-    ));
+    for (const table of tables) {
+      // Create node in loading state
+      const newNode: CanvasNode = {
+        id: table.id,
+        type: NodeType.TABLE,
+        x: table.x,
+        y: table.y,
+        title: table.title,
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: null
+      };
+      setNodes(prev => [...prev, newNode]);
+      markNodeAsJustCreated(table.id);
+      
+      // 聚焦到新创建的数据库表节点
+      focusOnNode(table.id, table.x, table.y, 280, 320); // Table: 280 x 320
+      const opId = addFileOperationMessage('create', 'table', table.title, table.id);
+      await new Promise(r => setTimeout(r, 800));
+      updateFileOperationStatus(opId, 'success');
+      
+      // Reveal with data
+      await new Promise(r => setTimeout(r, 200));
+      setNodes(prev => prev.map(n => n.id === table.id ? { ...n, status: 'done', data: table.data } : n));
+      setOperatingNode(null);
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     addAIMessage("Database models defined. Setting up third-party integrations...");
     updatePlanStatus(planMsgId, 's5', 'done');
@@ -1285,6 +1395,7 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 800));
     updatePlanStatus(planMsgId, 's6', 'loading');
+    setCurrentTaskName('Integrating Third-party Services');
 
     addAIMessage("Configuring external service integrations...");
     await new Promise(r => setTimeout(r, 400));
@@ -1293,25 +1404,20 @@ const App = () => {
     await simulateToolCall('grep', 'SendGrid API', 300);
     await simulateToolCall('read', 'config/services.json', 350);
 
-    // Pan to integration area
-    panTo(cx + 2700, cy + 600, 0.35);
-
     addAIMessage("Setting up email notifications and calendar sync...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Create Integration nodes (below databases)
+    // Create Integration nodes (below databases) - 每个集成节点都聚焦跟随
     const integrationX = backendBaseX + 100;
     const integrationY = dbY + 400;
 
-    const integrationNodes: CanvasNode[] = [
+    // 创建并逐个聚焦 Integration 节点
+    const integrationConfigs = [
       {
         id: 'node-integration-sendgrid',
-        type: NodeType.INTEGRATION,
         x: integrationX,
         y: integrationY,
         title: 'SendGrid',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
         data: {
           provider: 'SendGrid',
           category: 'Email',
@@ -1323,12 +1429,9 @@ const App = () => {
       },
       {
         id: 'node-integration-googlecal',
-        type: NodeType.INTEGRATION,
         x: integrationX + 380,
         y: integrationY,
         title: 'Google Calendar',
-        status: 'loading',
-        sectionId: SECTION_IDS.BACKEND,
         data: {
           provider: 'Google Calendar API',
           category: 'Calendar',
@@ -1340,23 +1443,33 @@ const App = () => {
       }
     ];
 
-    setNodes(prev => [...prev, ...integrationNodes]);
-
-    // Show file operation messages for integrations
-    const intId1 = addFileOperationMessage('create', 'integration', 'SendGrid', 'node-integration-sendgrid');
-    await new Promise(r => setTimeout(r, 400));
-    updateFileOperationStatus(intId1, 'success');
-
-    const intId2 = addFileOperationMessage('create', 'integration', 'Google Calendar', 'node-integration-googlecal');
-    await new Promise(r => setTimeout(r, 400));
-    updateFileOperationStatus(intId2, 'success');
-
-    // Reveal integrations
-    setNodes(prev => prev.map(n =>
-      n.sectionId === SECTION_IDS.BACKEND && n.type === NodeType.INTEGRATION
-        ? { ...n, status: 'done' }
-        : n
-    ));
+    for (const config of integrationConfigs) {
+      // 创建 loading 状态的节点
+      const newNode: CanvasNode = {
+        id: config.id,
+        type: NodeType.INTEGRATION,
+        x: config.x,
+        y: config.y,
+        title: config.title,
+        status: 'loading',
+        sectionId: SECTION_IDS.BACKEND,
+        data: config.data
+      };
+      setNodes(prev => [...prev, newNode]);
+      markNodeAsJustCreated(config.id);
+      
+      // 聚焦到新创建的集成节点
+      focusOnNode(config.id, config.x, config.y, 320, 240); // Integration: 320 x 240
+      const opId = addFileOperationMessage('create', 'integration', config.title, config.id);
+      await new Promise(r => setTimeout(r, 800));
+      updateFileOperationStatus(opId, 'success');
+      
+      // Reveal with done status
+      await new Promise(r => setTimeout(r, 200));
+      setNodes(prev => prev.map(n => n.id === config.id ? { ...n, status: 'done' } : n));
+      setOperatingNode(null);
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     addAIMessage("All integrations configured successfully.");
     
@@ -1374,6 +1487,11 @@ const App = () => {
     // ============================================
     await new Promise(r => setTimeout(r, 600));
     panTo(cx + 1000, cy, 0.16);
+
+    // 结束 Agent 运行
+    setAgentIsRunning(false);
+    setCurrentOperatingNodeId(null);
+    setCurrentTaskName('');
 
     setIsProcessing(false);
     addAIMessage("Complete! Your full-stack prototype is ready with:\n• 3 Product Strategy Documents\n• User Flow Diagram\n• 5 High-fidelity UI Screens\n• Backend Architecture & Data Models\n• Database Schemas\n• Third-party Integrations\n\nYou can click on any node to edit, or use the toolbar to add more resources.");
@@ -1576,6 +1694,12 @@ const App = () => {
     setMentionedScreenElements({});
   };
 
+  // Sidebar width change handler with localStorage persistence
+  const handleSidebarWidthChange = (width: number) => {
+    setSidebarWidth(width);
+    localStorage.setItem('sidebarWidth', width.toString());
+  };
+
   // ESC key to exit canvas selection mode
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1596,6 +1720,8 @@ const App = () => {
         isProcessing={isProcessing}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        width={sidebarWidth}
+        onWidthChange={handleSidebarWidthChange}
         nodes={nodes}
         sections={sections}
         onEnterCanvasSelection={handleEnterCanvasSelection}
@@ -1630,6 +1756,15 @@ const App = () => {
             mentionedNodeIds={mentionedNodeIds}
             onNodeMentionSelect={handleNodeMentionSelect}
             onRemoveMention={handleRemoveMention}
+            currentOperatingNodeId={currentOperatingNodeId}
+            justCreatedNodeIds={justCreatedNodeIds}
+        />
+
+        {/* Agent Status Panel - 画布顶部居中 */}
+        <AgentStatusPanel
+          plan={currentPlan}
+          isRunning={agentIsRunning}
+          currentTaskName={currentTaskName}
         />
 
         {runningScreenId && (

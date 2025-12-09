@@ -30,6 +30,9 @@ interface CanvasContainerProps {
   mentionedNodeIds?: string[];
   onNodeMentionSelect?: (nodeId: string) => void;
   onRemoveMention?: (nodeId: string) => void;
+  // Agent progress visualization
+  currentOperatingNodeId?: string | null;
+  justCreatedNodeIds?: string[];
 }
 
 interface SectionBounds {
@@ -56,8 +59,9 @@ const getNodeDimensions = (node: CanvasNode) => {
     if (node.width && node.height) return { width: node.width, height: node.height }; // Manual override
 
     if (node.type === NodeType.SCREEN) {
+         // Use node.variant first (for loading state), then fallback to data.variant
          const screenData = node.data as ScreenData;
-         const isWeb = screenData?.variant === 'web';
+         const isWeb = node.variant === 'web' || screenData?.variant === 'web';
          const width = isWeb ? WEB_SCREEN_WIDTH : MOBILE_SCREEN_WIDTH;
          const height = (isWeb ? WEB_SCREEN_HEIGHT : MOBILE_SCREEN_HEIGHT) + 80; // +80 for header/shadows
          return { width, height };
@@ -185,7 +189,9 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     isCanvasSelectionMode = false,
     mentionedNodeIds = [],
     onNodeMentionSelect,
-    onRemoveMention
+    onRemoveMention,
+    currentOperatingNodeId = null,
+    justCreatedNodeIds = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -716,7 +722,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       onWheel={handleWheel}
     >
       <div
-        className={`absolute top-0 left-0 w-full h-full origin-top-left pointer-events-none ${!isDraggingCanvas ? 'transition-transform duration-700 ease-in-out' : ''}`}
+        className={`absolute top-0 left-0 w-full h-full origin-top-left pointer-events-none ${!isDraggingCanvas ? 'transition-transform duration-150 ease-out' : ''}`}
         style={{
           transform: `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`,
           willChange: isDraggingCanvas ? 'transform' : 'auto',
@@ -798,20 +804,24 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 const isHovered = hoveredNodeId === node.id && !isSelected && !isMentioned;
                 const isHoveredInSelectionMode = isCanvasSelectionMode && hoveredNodeId === node.id;
                 const isDragging = draggedNodeId === node.id;
+                const isOperating = currentOperatingNodeId === node.id;
+                const isJustCreated = justCreatedNodeIds.includes(node.id);
 
                 return (
                 <div
                     key={node.id}
                     data-id={node.id}
                     className={`canvas-node absolute shadow-sm rounded-lg bg-moxt-fill-white border border-moxt-line-1
-                        ${!isDragging ? 'transition-all duration-200' : ''}
-                        ${node.type === NodeType.SCREEN || isMentioned ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
+                        ${!isDragging && !isJustCreated ? 'transition-all duration-200' : ''}
+                        ${node.type === NodeType.SCREEN || isMentioned || isOperating ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
                         ${isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
                         ${isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
                         ${isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
                         ${isMentioned ? 'ring-2 ring-blue-500' : ''}
                         ${isDragging ? 'scale-[1.01] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
+                        ${isOperating ? 'node-operating' : ''}
+                        ${isJustCreated ? 'node-just-created' : ''}
                     `}
                     style={{
                         left: node.x,
@@ -834,6 +844,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             title={node.title}
                             data={node.data as any}
                             loading={node.status === 'loading'}
+                            variant={node.variant || 'web'}
                             onRun={() => onRunNode(node.id)}
                             onEditPlan={() => onEditNode(node.id)}
                         />

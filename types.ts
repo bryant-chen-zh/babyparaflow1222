@@ -94,6 +94,7 @@ export interface IntegrationData {
 
 export interface CanvasNode extends BaseNode {
   data: DocumentData | WhiteboardData | ScreenData | FlowData | TableData | APIData | IntegrationData | null;
+  variant?: 'web' | 'mobile'; // For ScreenNode
 }
 
 export interface CanvasEdge {
@@ -179,6 +180,7 @@ export interface ChatMessage {
   role?: 'user' | 'ai'; // For backward compatibility, used by user/ai types
   content: string;
   timestamp: number;
+  images?: string[];           // Base64 encoded images
   plan?: PlanStep[];           // Optional To-Do list for this message
   toolCall?: ToolCallData;     // Tool call data
   question?: QuestionData;     // Question data

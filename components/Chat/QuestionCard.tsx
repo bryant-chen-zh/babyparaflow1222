@@ -91,7 +91,7 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
   // 折叠状态：显示答案摘要
   if (collapsed) {
     return (
-      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg max-w-[96%] mb-4 p-3">
+      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg mb-4 p-3">
         <div className="flex items-center gap-2 mb-2">
           <HelpCircle className="text-moxt-brand-7" size={14} />
           <span className="text-13 font-semibold text-moxt-text-1">Answers Summary</span>
@@ -100,7 +100,7 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
           {allQuestions.map((q, index) => {
             const selectedOption = q.options.find(opt => opt.id === selectedAnswers[q.questionId]);
             return (
-              <div key={q.questionId} className="text-12 text-moxt-text-2">
+              <div key={q.questionId} className="text-13 text-moxt-text-2">
                 <span className="font-medium text-moxt-text-1">Question {index + 1}/{totalQuestions}:</span> {selectedOption?.label || 'Skipped'}
               </div>
             );

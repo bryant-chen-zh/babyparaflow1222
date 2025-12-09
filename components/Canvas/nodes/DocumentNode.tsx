@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { FileText, Maximize2, Edit3 } from 'lucide-react';
 import { DocumentData } from '../../../types';
 import { parseMarkdown, renderInlineStyles } from '../../../utils/markdownUtils';
+import { DocumentSkeleton } from '../../ReactBits';
 
 interface DocumentNodeProps {
   title?: string;
@@ -14,16 +15,7 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({ title, data, loading
   const blocks = useMemo(() => data ? parseMarkdown(data.content) : [], [data]);
 
   if (loading || !data) {
-    return (
-      <div className="p-6 space-y-4 animate-pulse">
-        <div className="h-4 bg-slate-100 rounded w-3/4"></div>
-        <div className="space-y-2">
-          <div className="h-3 bg-slate-100 rounded"></div>
-          <div className="h-3 bg-slate-100 rounded"></div>
-          <div className="h-3 bg-slate-100 rounded w-5/6"></div>
-        </div>
-      </div>
-    );
+    return <DocumentSkeleton />;
   }
 
   return (

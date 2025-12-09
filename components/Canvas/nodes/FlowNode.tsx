@@ -1,5 +1,5 @@
 import React from 'react';
-import { GitCommit, ArrowDown } from 'lucide-react';
+import { GitCommit, ArrowDown, GitBranch } from 'lucide-react';
 import { FlowData } from '../../../types';
 
 interface FlowNodeProps {
@@ -8,7 +8,8 @@ interface FlowNodeProps {
 }
 
 export const FlowNode: React.FC<FlowNodeProps> = ({ data, loading }) => {
-  if (loading || !data) {
+  // Loading state: show skeleton
+  if (loading) {
     return (
       <div className="p-6 flex flex-col items-center gap-4 animate-pulse">
         {[1, 2, 3].map((i) => (
@@ -17,6 +18,42 @@ export const FlowNode: React.FC<FlowNodeProps> = ({ data, loading }) => {
             {i < 3 && <div className="h-6 w-1 bg-slate-700"></div>}
           </React.Fragment>
         ))}
+      </div>
+    );
+  }
+
+  // Empty state: show placeholder when data is null (not loading)
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        {/* Empty state illustration */}
+        <div className="flex flex-col items-center gap-3 mb-6">
+          {/* Placeholder flow steps */}
+          {[1, 2, 3].map((i) => (
+            <React.Fragment key={i}>
+              <div className="w-48 h-12 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center">
+                <div className="flex items-center gap-2 text-slate-500">
+                  <div className="w-5 h-5 rounded-full border-2 border-dashed border-slate-500 flex items-center justify-center text-[10px] font-mono">
+                    {i}
+                  </div>
+                  <span className="text-xs">Step {i}</span>
+                </div>
+              </div>
+              {i < 3 && (
+                <div className="h-4 flex items-center justify-center text-slate-600">
+                  <ArrowDown size={14} className="opacity-50" />
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        
+        {/* Text content */}
+        <div className="flex items-center gap-2 mb-2">
+          <GitBranch size={18} className="text-purple-400" />
+          <h2 className="text-lg font-semibold text-slate-300">No Steps Yet</h2>
+        </div>
+        <p className="text-sm text-slate-500 text-center">Double-click to add flow steps</p>
       </div>
     );
   }

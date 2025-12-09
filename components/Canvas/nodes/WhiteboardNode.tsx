@@ -2,6 +2,7 @@
 import React from 'react';
 import { Maximize2, GitCommit, GitBranch, MousePointer2 } from 'lucide-react';
 import { WhiteboardData } from '../../../types';
+import { WhiteboardSkeleton } from '../../ReactBits';
 
 interface WhiteboardNodeProps {
   title?: string;
@@ -12,13 +13,7 @@ interface WhiteboardNodeProps {
 
 export const WhiteboardNode: React.FC<WhiteboardNodeProps> = ({ title, data, loading, onEdit }) => {
   if (loading || !data) {
-    return (
-      <div className="w-full h-full flex items-center justify-center animate-pulse p-8">
-         <div className="w-full h-full border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center">
-            <GitCommit className="text-slate-200" size={32} />
-         </div>
-      </div>
-    );
+    return <WhiteboardSkeleton />;
   }
 
   // Calculate bounds for viewBox to center content in preview
@@ -64,48 +59,61 @@ export const WhiteboardNode: React.FC<WhiteboardNodeProps> = ({ title, data, loa
               style={{ backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
          </div>
 
-         <svg 
-            className="w-full h-full pointer-events-none select-none"
-            viewBox={viewBox} 
-            preserveAspectRatio="xMidYMid meet"
-         >
-            {data.elements.map(el => {
-                const stroke = '#64748b';
-                const fill = '#ffffff';
-                const textFill = '#0f172a';
-                switch (el.type) {
-                    case 'rect':
-                        return <rect key={el.id} x={el.x} y={el.y} width={el.width} height={el.height} stroke={stroke} fill={fill} rx={4} strokeWidth={2} />;
-                    case 'circle':
-                        return <ellipse key={el.id} cx={el.x + el.width/2} cy={el.y + el.height/2} rx={el.width/2} ry={el.height/2} stroke={stroke} fill={fill} strokeWidth={2} />;
-                    case 'diamond':
-                         const mx = el.x + el.width / 2;
-                         const my = el.y + el.height / 2;
-                         return <polygon key={el.id} points={`${mx},${el.y} ${el.x + el.width},${my} ${mx},${el.y + el.height} ${el.x},${my}`} stroke={stroke} fill={fill} strokeWidth={2} />;
-                    case 'text':
-                        return (
-                            <text key={el.id} x={el.x + el.width/2} y={el.y + el.height/2} dominantBaseline="middle" textAnchor="middle" fill={textFill} fontSize={14} fontFamily="monospace">
-                                {el.content}
-                            </text>
-                        );
-                    case 'arrow':
-                        const endX = el.x + el.width;
-                        const endY = el.y + el.height;
-                        return <line key={el.id} x1={el.x} y1={el.y} x2={endX} y2={endY} stroke={stroke} strokeWidth={2} markerEnd="url(#arrowhead-preview)" />;
-                    default: return null;
-                }
-            })}
-            <defs>
-                <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                    <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
-                </marker>
-            </defs>
-         </svg>
+         {/* Empty State */}
+         {data.elements.length === 0 ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+               <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mb-4">
+                  <GitBranch size={28} className="text-purple-500" />
+               </div>
+               <h2 className="text-lg font-semibold text-slate-600 mb-1">Empty Whiteboard</h2>
+               <p className="text-sm text-slate-400">Double-click to start designing</p>
+            </div>
+         ) : (
+            <svg 
+               className="w-full h-full pointer-events-none select-none"
+               viewBox={viewBox} 
+               preserveAspectRatio="xMidYMid meet"
+            >
+               {data.elements.map(el => {
+                   const stroke = '#64748b';
+                   const fill = '#ffffff';
+                   const textFill = '#0f172a';
+                   switch (el.type) {
+                       case 'rect':
+                           return <rect key={el.id} x={el.x} y={el.y} width={el.width} height={el.height} stroke={stroke} fill={fill} rx={4} strokeWidth={2} />;
+                       case 'circle':
+                           return <ellipse key={el.id} cx={el.x + el.width/2} cy={el.y + el.height/2} rx={el.width/2} ry={el.height/2} stroke={stroke} fill={fill} strokeWidth={2} />;
+                       case 'diamond':
+                            const mx = el.x + el.width / 2;
+                            const my = el.y + el.height / 2;
+                            return <polygon key={el.id} points={`${mx},${el.y} ${el.x + el.width},${my} ${mx},${el.y + el.height} ${el.x},${my}`} stroke={stroke} fill={fill} strokeWidth={2} />;
+                       case 'text':
+                           return (
+                               <text key={el.id} x={el.x + el.width/2} y={el.y + el.height/2} dominantBaseline="middle" textAnchor="middle" fill={textFill} fontSize={14} fontFamily="monospace">
+                                   {el.content}
+                               </text>
+                           );
+                       case 'arrow':
+                           const endX = el.x + el.width;
+                           const endY = el.y + el.height;
+                           return <line key={el.id} x1={el.x} y1={el.y} x2={endX} y2={endY} stroke={stroke} strokeWidth={2} markerEnd="url(#arrowhead-preview)" />;
+                       default: return null;
+                   }
+               })}
+               <defs>
+                   <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                       <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                   </marker>
+               </defs>
+            </svg>
+         )}
          
-         {/* Hover Hint */}
-         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[10px] text-slate-500 font-bold uppercase tracking-wide shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center gap-2">
-             <MousePointer2 size={12} /> Double Click to Edit
-         </div>
+         {/* Hover Hint - only show when there are elements */}
+         {data.elements.length > 0 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[10px] text-slate-500 font-bold uppercase tracking-wide shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center gap-2">
+                <MousePointer2 size={12} /> Double Click to Edit
+            </div>
+         )}
       </div>
       
       {/* Footer */}

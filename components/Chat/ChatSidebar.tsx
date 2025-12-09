@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare } from 'lucide-react';
+import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare, ImagePlus, X, ChevronUp, ChevronDown, Plus, History, Search, Pencil, Trash2, Check, ArrowUp, CircleArrowRight } from 'lucide-react';
 import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
 import { ToolCallMessage } from './ToolCallMessage';
 import { QuestionCard } from './QuestionCard';
@@ -9,13 +9,19 @@ import { FileOperationCard } from './FileOperationCard';
 import { ThinkingMessage } from './ThinkingMessage';
 import { parseMarkdown, renderInlineStyles, Block } from '../../utils/markdownUtils';
 
+// Sidebar width constraints
+const MIN_SIDEBAR_WIDTH = 320;
+const MAX_SIDEBAR_WIDTH = 600;
+
 interface ChatSidebarProps {
   messages: ChatMessage[];
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, images?: string[]) => void;
   onStartSimulation: () => void;
   isProcessing: boolean;
   isOpen: boolean;
   onToggle: () => void;
+  width?: number;
+  onWidthChange?: (width: number) => void;
   nodes: CanvasNode[];
   sections: CanvasSection[];
   onEnterCanvasSelection: () => void;
@@ -28,6 +34,8 @@ interface ChatSidebarProps {
   onContinueQuestion?: (messageId: string) => void;
   onLocateNode?: (nodeId: string) => void;
   currentPlan?: PlanStep[] | null;
+  onNewChat?: () => void;
+  onViewHistory?: () => void;
 }
 
 // Helper function to get node icon
@@ -78,6 +86,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   isProcessing,
   isOpen,
   onToggle,
+  width = 420,
+  onWidthChange,
   nodes,
   sections,
   onEnterCanvasSelection,
@@ -89,16 +99,227 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onSkipQuestion,
   onContinueQuestion,
   onLocateNode,
-  currentPlan
+  currentPlan,
+  onNewChat,
+  onViewHistory
 }) => {
   // State
   const [input, setInput] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [collapsedPlans, setCollapsedPlans] = useState<Set<string>>(new Set());
+  const [showHistory, setShowHistory] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
   const mentionStartPos = useRef<number>(-1);
+  const [historySearch, setHistorySearch] = useState('');
+  const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [currentChatId] = useState('current'); // Current chat ID
+
+  // Mock history data with timestamps for grouping
+  const [historyItems, setHistoryItems] = useState([
+    { id: 'current', title: 'New Chat', timestamp: Date.now() },
+    { id: '1', title: 'Trip酒店预订', timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000 }, // 2 days ago
+    { id: '2', title: 'E-commerce Platform', timestamp: Date.now() - 5 * 24 * 60 * 60 * 1000 }, // 5 days ago
+    { id: '3', title: 'Social Media Dashboard', timestamp: Date.now() - 10 * 24 * 60 * 60 * 1000 }, // 10 days ago
+    { id: '4', title: 'Task Management Tool', timestamp: Date.now() - 15 * 24 * 60 * 60 * 1000 }, // 15 days ago
+  ]);
+
+  // Group history items by time period
+  const groupHistoryItems = () => {
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const sevenDaysMs = 7 * oneDayMs;
+
+    const filtered = historyItems.filter(item => 
+      item.title.toLowerCase().includes(historySearch.toLowerCase())
+    );
+
+    const today: typeof historyItems = [];
+    const previous7Days: typeof historyItems = [];
+    const earlier: typeof historyItems = [];
+
+    filtered.forEach(item => {
+      const age = now - item.timestamp;
+      if (age < oneDayMs) {
+        today.push(item);
+      } else if (age < sevenDaysMs) {
+        previous7Days.push(item);
+      } else {
+        earlier.push(item);
+      }
+    });
+
+    return { today, previous7Days, earlier };
+  };
+
+  const handleDeleteHistory = (id: string) => {
+    setHistoryItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleStartEdit = (id: string, title: string) => {
+    setEditingHistoryId(id);
+    setEditingTitle(title);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    if (editingTitle.trim()) {
+      setHistoryItems(prev => prev.map(item => 
+        item.id === id ? { ...item, title: editingTitle.trim() } : item
+      ));
+    }
+    setEditingHistoryId(null);
+    setEditingTitle('');
+  };
+
+  // Close history popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (historyRef.current && !historyRef.current.contains(event.target as Node)) {
+        setShowHistory(false);
+      }
+    };
+    if (showHistory) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showHistory]);
+
+  // Resize drag handling
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, e.clientX));
+      onWidthChange?.(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, onWidthChange]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  const MAX_IMAGES = 4;
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  // Compress image and convert to base64
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 1200;
+          let { width, height } = img;
+          
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height / width) * maxSize;
+              width = maxSize;
+            } else {
+              width = (width / height) * maxSize;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = reject;
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files) return;
+    
+    const validFiles = Array.from(files)
+      .filter(f => f.type.startsWith('image/') && f.size <= MAX_FILE_SIZE)
+      .slice(0, MAX_IMAGES - images.length);
+    
+    for (const file of validFiles) {
+      try {
+        const base64 = await compressImage(file);
+        setImages(prev => [...prev, base64].slice(0, MAX_IMAGES));
+      } catch (err) {
+        console.error('Failed to process image:', err);
+      }
+    }
+  };
+
+  // Remove image
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle paste event
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      const imageItems = Array.from(items).filter(item => item.type.startsWith('image/'));
+      if (imageItems.length > 0) {
+        e.preventDefault();
+        const files = imageItems.map(item => item.getAsFile()).filter(Boolean) as File[];
+        handleFileSelect(files as unknown as FileList);
+      }
+    };
+    
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [images.length]);
+
+  // Handle drag events
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileSelect(e.dataTransfer.files);
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -270,10 +491,11 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isProcessing) {
-      // Send message and always trigger simulation
-      onSendMessage(input);
+    if ((input.trim() || images.length > 0) && !isProcessing) {
+      // Send message with images and always trigger simulation
+      onSendMessage(input, images);
       setInput('');
+      setImages([]);
       onStartSimulation();
     }
   };
@@ -518,7 +740,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   // Expanded State
   return (
-    <div className="w-[420px] h-full bg-moxt-fill-white border-r border-moxt-line-1 flex flex-col z-20 flex-shrink-0">
+    <div 
+      className="h-full bg-moxt-fill-white border-r border-moxt-line-1 flex flex-col z-20 flex-shrink-0 relative"
+      style={{ width: `${width}px` }}
+    >
+      {/* Resize Handle */}
+      <div
+        className={`absolute top-0 right-0 w-1 h-full cursor-col-resize z-30 transition-colors hover:bg-moxt-brand-7/30 ${isResizing ? 'bg-moxt-brand-7/50' : 'bg-transparent'}`}
+        onMouseDown={handleResizeStart}
+      />
       <div className="px-4 py-3 border-b border-moxt-line-1 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-moxt-brand-7 rounded-lg flex items-center justify-center">
@@ -538,6 +768,253 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         </button>
       </div>
 
+      {/* Chat Actions Bar */}
+      <div className="px-4 py-2.5 border-b border-moxt-line-1 flex items-center justify-between">
+        <span className="text-13 font-medium text-moxt-text-1">New Chat</span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onNewChat}
+            className="p-1.5 hover:bg-moxt-fill-1 text-moxt-text-3 hover:text-moxt-text-2 rounded-md transition-colors"
+            title="New Chat"
+          >
+            <Plus size={16} />
+          </button>
+          <div className="relative" ref={historyRef}>
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-1.5 hover:bg-moxt-fill-1 text-moxt-text-3 hover:text-moxt-text-2 rounded-md transition-colors ${showHistory ? 'bg-moxt-fill-1' : ''}`}
+              title="View History"
+            >
+              <History size={16} />
+            </button>
+            
+            {/* History Popover */}
+            {showHistory && (
+              <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-moxt-line-1 rounded-lg shadow-lg z-50 overflow-hidden">
+                {/* Search Box */}
+                <div className="px-3 py-2.5 border-b border-moxt-line-1">
+                  <div className="flex items-center gap-2 text-moxt-text-3">
+                    <Search size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={historySearch}
+                      onChange={(e) => setHistorySearch(e.target.value)}
+                      className="flex-1 bg-transparent text-13 text-moxt-text-1 placeholder-moxt-text-4 outline-none"
+                    />
+                  </div>
+                </div>
+                
+                {/* History List */}
+                <div className="max-h-80 overflow-y-auto">
+                  {(() => {
+                    const { today, previous7Days, earlier } = groupHistoryItems();
+                    return (
+                      <>
+                        {today.length > 0 && (
+                          <div>
+                            <div className="px-3 py-2 text-11 font-medium text-moxt-text-4">Today</div>
+                            {today.map((item) => (
+                              <div
+                                key={item.id}
+                                className={`group flex items-center px-3 py-2 transition-colors cursor-pointer ${
+                                  item.id === currentChatId 
+                                    ? 'bg-moxt-fill-2' 
+                                    : 'hover:bg-moxt-brand-7/10'
+                                }`}
+                                onClick={() => {
+                                  if (editingHistoryId !== item.id) {
+                                    setShowHistory(false);
+                                    onViewHistory?.();
+                                  }
+                                }}
+                              >
+                                {editingHistoryId === item.id ? (
+                                  <div className="flex-1 flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={editingTitle}
+                                      onChange={(e) => setEditingTitle(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveEdit(item.id);
+                                        if (e.key === 'Escape') setEditingHistoryId(null);
+                                      }}
+                                      className="flex-1 bg-white border border-moxt-line-1 rounded px-2 py-1 text-13 outline-none focus:border-moxt-brand-7"
+                                      autoFocus
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleSaveEdit(item.id); }}
+                                      className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-brand-7"
+                                    >
+                                      <Check size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <span className="flex-1 text-13 text-moxt-text-1 truncate">{item.title}</span>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleStartEdit(item.id, item.title); }}
+                                        className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-text-3 hover:text-moxt-text-2"
+                                      >
+                                        <Pencil size={14} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteHistory(item.id); }}
+                                        className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-text-3 hover:text-red-500"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {previous7Days.length > 0 && (
+                          <div>
+                            <div className="px-3 py-2 text-11 font-medium text-moxt-text-4">Previous 7 Days</div>
+                            {previous7Days.map((item) => (
+                              <div
+                                key={item.id}
+                                className={`group flex items-center px-3 py-2 transition-colors cursor-pointer ${
+                                  item.id === currentChatId 
+                                    ? 'bg-moxt-fill-2' 
+                                    : 'hover:bg-moxt-brand-7/10'
+                                }`}
+                                onClick={() => {
+                                  if (editingHistoryId !== item.id) {
+                                    setShowHistory(false);
+                                    onViewHistory?.();
+                                  }
+                                }}
+                              >
+                                {editingHistoryId === item.id ? (
+                                  <div className="flex-1 flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={editingTitle}
+                                      onChange={(e) => setEditingTitle(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveEdit(item.id);
+                                        if (e.key === 'Escape') setEditingHistoryId(null);
+                                      }}
+                                      className="flex-1 bg-white border border-moxt-line-1 rounded px-2 py-1 text-13 outline-none focus:border-moxt-brand-7"
+                                      autoFocus
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleSaveEdit(item.id); }}
+                                      className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-brand-7"
+                                    >
+                                      <Check size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <span className="flex-1 text-13 text-moxt-text-1 truncate">{item.title}</span>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleStartEdit(item.id, item.title); }}
+                                        className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-text-3 hover:text-moxt-text-2"
+                                      >
+                                        <Pencil size={14} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteHistory(item.id); }}
+                                        className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-text-3 hover:text-red-500"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {earlier.length > 0 && (
+                          <div>
+                            <div className="px-3 py-2 text-11 font-medium text-moxt-text-4">Earlier</div>
+                            {earlier.map((item) => (
+                              <div
+                                key={item.id}
+                                className={`group flex items-center px-3 py-2 transition-colors cursor-pointer ${
+                                  item.id === currentChatId 
+                                    ? 'bg-moxt-fill-2' 
+                                    : 'hover:bg-moxt-brand-7/10'
+                                }`}
+                                onClick={() => {
+                                  if (editingHistoryId !== item.id) {
+                                    setShowHistory(false);
+                                    onViewHistory?.();
+                                  }
+                                }}
+                              >
+                                {editingHistoryId === item.id ? (
+                                  <div className="flex-1 flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={editingTitle}
+                                      onChange={(e) => setEditingTitle(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveEdit(item.id);
+                                        if (e.key === 'Escape') setEditingHistoryId(null);
+                                      }}
+                                      className="flex-1 bg-white border border-moxt-line-1 rounded px-2 py-1 text-13 outline-none focus:border-moxt-brand-7"
+                                      autoFocus
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleSaveEdit(item.id); }}
+                                      className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-brand-7"
+                                    >
+                                      <Check size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <span className="flex-1 text-13 text-moxt-text-1 truncate">{item.title}</span>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleStartEdit(item.id, item.title); }}
+                                        className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-text-3 hover:text-moxt-text-2"
+                                      >
+                                        <Pencil size={14} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteHistory(item.id); }}
+                                        className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-text-3 hover:text-red-500"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {today.length === 0 && previous7Days.length === 0 && earlier.length === 0 && (
+                          <div className="px-3 py-4 text-center text-13 text-moxt-text-4">
+                            No results found
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 custom-scrollbar">
         {messages.length === 0 && (
             <div className="text-center mt-20 opacity-60">
@@ -548,14 +1025,18 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         {messages.map((msg) => {
           // Tool call message
           if (msg.type === 'tool_call' && msg.toolCall) {
-            return <ToolCallMessage key={msg.id} toolCall={msg.toolCall} />;
+            return <ToolCallMessage toolCall={msg.toolCall} />;
           }
 
-          // Question message
+          // Question message - only render collapsed questions in message list
+          // Active (non-collapsed) questions are rendered above the input area
           if (msg.type === 'question' && msg.question) {
+            if (!msg.collapsed) {
+              // Skip active questions - they will be shown above input
+              return null;
+            }
             return (
               <QuestionCard
-                key={msg.id}
                 question={msg.question}
                 onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
                 onSkip={() => onSkipQuestion?.(msg.id)}
@@ -569,7 +1050,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           if (msg.type === 'file_operation' && msg.fileOperation) {
             return (
               <FileOperationCard
-                key={msg.id}
                 fileOperation={msg.fileOperation}
                 onLocate={onLocateNode}
               />
@@ -578,7 +1058,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
           // Thinking message
           if (msg.type === 'thinking' && msg.thinking) {
-            return <ThinkingMessage key={msg.id} thinking={msg.thinking} />;
+            return <ThinkingMessage thinking={msg.thinking} />;
           }
 
           // User and AI messages
@@ -588,51 +1068,142 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'max-w-[80%]' : 'w-full'}`}>
+                  {/* User Images */}
+                  {msg.role === 'user' && msg.images && msg.images.length > 0 && (
+                    <div className={`flex gap-2 flex-wrap justify-end`}>
+                      {msg.images.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt={`Image ${idx + 1}`}
+                          className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-moxt-line-1"
+                        />
+                      ))}
+                    </div>
+                  )}
+
                   {/* Text Content */}
                   {msg.content && (
                       msg.role === 'user' ? (
                         // User message - keep bubble
-                        <div className="px-3 py-2.75 rounded-lg text-13 leading-relaxed bg-moxt-fill-2 text-moxt-text-1 rounded-tr-none">
+                        <div 
+                          className="rounded-xl rounded-tr-none"
+                          style={{
+                            backgroundColor: '#F6F6F7',
+                            color: '#0D0E13',
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: '13px',
+                            fontWeight: 400,
+                            lineHeight: '22px',
+                            padding: '12px 16px'
+                          }}
+                        >
                           {renderMessageContent(msg.content, false)}
                         </div>
                       ) : (
                         // AI message - with Markdown support
-                        <div className="text-13 leading-relaxed text-moxt-text-2">
+                        <div 
+                          style={{
+                            color: '#0D0E13',
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: '13px',
+                            fontWeight: 400,
+                            lineHeight: '22px'
+                          }}
+                        >
                           {renderMessageContent(msg.content, true)}
                         </div>
                       )
                   )}
 
-                  {/* Plan/Steps Renderer */}
-                  {msg.plan && (
-                      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg p-3 flex flex-col gap-2">
-                          <div className="text-[10px] font-bold text-moxt-text-4 uppercase tracking-wider mb-1">Execution Plan</div>
-                          {msg.plan.map(step => (
-                              <div key={step.id} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-moxt-fill-1 border border-moxt-line-1">
-                                  {step.status === 'pending' && <CircleDashed size={14} className="text-moxt-text-4" />}
-                                  {step.status === 'loading' && <Loader2 size={14} className="text-blue-500 animate-spin" />}
-                                  {step.status === 'done' && <CheckCircle2 size={14} className="text-moxt-brand-7" />}
+                  {/* Plan/Steps Renderer - Cursor-style */}
+                  {msg.plan && (() => {
+                    const isCollapsed = collapsedPlans.has(msg.id);
+                    const toggleCollapse = () => {
+                      setCollapsedPlans(prev => {
+                        const next = new Set(prev);
+                        if (next.has(msg.id)) {
+                          next.delete(msg.id);
+                        } else {
+                          next.add(msg.id);
+                        }
+                        return next;
+                      });
+                    };
+                    const doneCount = msg.plan.filter(s => s.status === 'done').length;
+                    const totalCount = msg.plan.length;
 
-                                  <span className={`text-12 font-medium ${
-                                      step.status === 'pending' ? 'text-moxt-text-3' : 'text-moxt-text-1'
-                                  }`}>
-                                      {step.label}
-                                  </span>
+                    return (
+                      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg overflow-hidden">
+                          {/* Header */}
+                          <button 
+                            onClick={toggleCollapse}
+                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-moxt-fill-1/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <ListTodo size={16} className="text-moxt-brand-7" />
+                              <span className="text-13 font-semibold text-moxt-text-1">
+                                To-dos ({doneCount}/{totalCount})
+                              </span>
+                            </div>
+                            {isCollapsed ? (
+                              <ChevronDown size={16} className="text-moxt-text-3" />
+                            ) : (
+                              <ChevronUp size={16} className="text-moxt-text-3" />
+                            )}
+                          </button>
+
+                          {/* Todo List - Collapsible */}
+                          {!isCollapsed && (
+                            <>
+                              <div className="px-4 py-3 border-t border-moxt-line-1" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {msg.plan.map(step => (
+                                  <div key={step.id} className="flex items-start gap-2">
+                                      {step.status === 'pending' && (
+                                        <CircleDashed size={16} className="text-moxt-text-4 flex-shrink-0 mt-1" />
+                                      )}
+                                      {step.status === 'loading' && (
+                                        <CircleArrowRight size={16} className="text-moxt-brand-7 flex-shrink-0 mt-1" />
+                                      )}
+                                      {step.status === 'done' && (
+                                        <CheckCircle2 size={16} className="text-moxt-brand-7 flex-shrink-0 mt-1" />
+                                      )}
+
+                                      <span 
+                                        style={{
+                                          color: step.status === 'pending' ? '#9CA3AF' : '#0D0E13',
+                                          fontFamily: 'Inter, sans-serif',
+                                          fontSize: '13px',
+                                          fontWeight: 400,
+                                          lineHeight: '24px',
+                                          textDecoration: 'none'
+                                        }}
+                                      >
+                                          {step.label}
+                                      </span>
+                                  </div>
+                                ))}
                               </div>
-                          ))}
 
-                          {/* Start execution button - at bottom */}
-                          {!msg.executionStarted && onStartExecution && (
-                            <button
-                              onClick={() => onStartExecution(msg.id)}
-                              className="flex items-center justify-center gap-2 mt-2 px-4 py-2.5 bg-moxt-brand-7 hover:opacity-90 text-white text-13 font-medium rounded-md transition-colors w-full"
-                            >
-                              <Play size={14} />
-                              <span>Start Execution</span>
-                            </button>
+                              {/* Footer with Button */}
+                              {!msg.executionStarted && onStartExecution && (
+                                <div className="px-3 py-2 border-t border-moxt-line-1 bg-moxt-fill-1/30 flex items-center justify-between">
+                                  <span className="text-12 text-moxt-text-2 pl-1 font-medium">
+                                    Ready to start
+                                  </span>
+                                  <button
+                                    onClick={() => onStartExecution(msg.id)}
+                                    className="px-3 py-1.5 bg-moxt-brand-7 hover:bg-moxt-brand-7/90 text-white text-12 font-medium rounded-lg transition-colors shadow-sm"
+                                  >
+                                    Start
+                                  </button>
+                                </div>
+                              )}
+                            </>
                           )}
                       </div>
-                  )}
+                    );
+                  })()}
               </div>
             </div>
           );
@@ -647,8 +1218,38 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      <div className="px-4 py-3 bg-moxt-fill-white border-t border-moxt-line-1">
-        <form onSubmit={handleSubmit} className="relative">
+      <div className="px-4 py-3 flex flex-col gap-2">
+        {/* Active Question Card - shown above input */}
+        {messages.filter(msg => msg.type === 'question' && msg.question && !msg.collapsed).map(msg => (
+          <QuestionCard
+            question={msg.question!}
+            onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
+            onSkip={() => onSkipQuestion?.(msg.id)}
+            onContinue={() => onContinueQuestion?.(msg.id)}
+            collapsed={false}
+          />
+        ))}
+
+        {/* 统一容器：FloatingTodoBar + 输入框 */}
+        <div className="bg-moxt-fill-white rounded-xl border border-moxt-line-1 overflow-hidden">
+          {/* Floating Todo Bar */}
+          <FloatingTodoBar plan={currentPlan || null} />
+
+          {/* 输入区域 */}
+          <form 
+            onSubmit={handleSubmit} 
+            className="relative"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+          {/* Drag Overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 bg-moxt-brand-7/10 border-2 border-dashed border-moxt-brand-7 rounded-lg z-50 flex items-center justify-center">
+              <div className="text-moxt-brand-7 font-medium text-13">Drop images here</div>
+            </div>
+          )}
+
           {/* Mention Popover */}
           {showMentions && (
             <div className="absolute bottom-full left-0 w-full mb-2 bg-moxt-fill-white border border-moxt-line-1 shadow-lg rounded-lg overflow-hidden max-h-64 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-100">
@@ -700,8 +1301,27 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
           )}
 
-          {/* Floating Todo Bar - shows all tasks above input */}
-          <FloatingTodoBar plan={currentPlan || null} />
+          {/* Image Preview */}
+          {images.length > 0 && (
+            <div className="flex gap-2 px-3 pt-3 pb-1 flex-wrap">
+              {images.map((img, idx) => (
+                <div key={idx} className="relative group">
+                  <img
+                    src={img}
+                    alt={`Upload ${idx + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg border border-moxt-line-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-moxt-text-1 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <textarea
             ref={textareaRef}
@@ -711,16 +1331,43 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             placeholder="Type @ to mention files or describe your app idea..."
             disabled={isProcessing}
             rows={3}
-            className="w-full bg-moxt-fill-1 text-moxt-text-1 placeholder-moxt-text-4 text-13 rounded-lg py-3 pl-4 pr-12 focus:outline-none focus:ring-2 focus:ring-moxt-brand-7/30 border border-moxt-line-1 transition-all resize-none"
+            className="w-full bg-transparent text-moxt-text-1 placeholder-moxt-text-4 text-13 py-2 px-3 focus:outline-none focus:ring-0 border-none resize-none"
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || isProcessing}
-            className="absolute right-2 bottom-2 p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-md transition-colors"
-          >
-            <Send size={16} />
-          </button>
+
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-2 pb-2">
+            {/* Left: Image Button */}
+            <div className="flex items-center gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFileSelect(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={images.length >= MAX_IMAGES || isProcessing}
+                className="p-1.5 hover:bg-moxt-fill-1 disabled:opacity-50 text-moxt-text-3 hover:text-moxt-text-2 rounded-md transition-colors"
+                title={`Add image (${images.length}/${MAX_IMAGES})`}
+              >
+                <ImagePlus size={18} />
+              </button>
+            </div>
+
+            {/* Right: Send Button */}
+            <button
+              type="submit"
+              disabled={(!input.trim() && images.length === 0) || isProcessing}
+              className="p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-lg transition-colors"
+            >
+              <ArrowUp size={16} strokeWidth={2.5} />
+            </button>
+          </div>
         </form>
+        </div>
       </div>
     </div>
   );

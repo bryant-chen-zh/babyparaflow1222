@@ -39,6 +39,7 @@
               }
             },
             fontSize: {
+              '11': ['11px', { lineHeight: '1.4' }],
               '12': ['12px', { lineHeight: '1.4' }],
               '13': ['13px', { lineHeight: '1.5' }],
               '14': ['14px', { lineHeight: '1.5' }],
@@ -98,6 +99,160 @@
       .canvas-grid {
         background-image: radial-gradient(var(--moxt-line-1) 1px, transparent 1px);
         background-size: 20px 20px;
+      }
+      
+      /* Agent Node Operating Animation - Star Border Effect */
+      @keyframes node-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(138, 143, 138, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 0 6px rgba(138, 143, 138, 0);
+        }
+      }
+      
+      @keyframes node-glow {
+        0%, 100% {
+          box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.08);
+        }
+        50% {
+          box-shadow: 0 4px 30px 4px rgba(0, 0, 0, 0.12);
+        }
+      }
+      
+      @keyframes node-pop-in {
+        0% {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+        60% {
+          transform: scale(1.01);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      
+      @keyframes border-flow {
+        0% {
+          background-position: 0% 50%;
+        }
+        100% {
+          background-position: 200% 50%;
+        }
+      }
+      
+      /* Star Border Animation - Inspired by ReactBits */
+      @keyframes star-rotate {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      
+      @keyframes star-twinkle {
+        0%, 100% {
+          opacity: 0.6;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.2);
+        }
+      }
+      
+      @keyframes gradient-shift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+      
+      .node-operating {
+        animation: node-glow 2s ease-in-out infinite;
+        border-color: transparent !important;
+        position: relative;
+      }
+      
+      .node-operating::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: 10px;
+        background: linear-gradient(
+          90deg,
+          var(--moxt-line-1) 0%,
+          var(--moxt-text-4) 25%,
+          var(--moxt-text-3) 50%,
+          var(--moxt-text-4) 75%,
+          var(--moxt-line-1) 100%
+        );
+        background-size: 200% 100%;
+        animation: gradient-shift 3s ease-in-out infinite;
+        z-index: -1;
+        opacity: 0.8;
+      }
+      
+      .node-operating::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 8px;
+        background: var(--moxt-fill-white);
+        z-index: -1;
+      }
+      
+      .node-pop-in {
+        animation: node-pop-in 0.4s ease-out forwards;
+      }
+      
+      .node-just-created {
+        animation: node-pop-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      }
+      
+      /* Shimmer Loading Animation */
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+      
+      .shimmer {
+        background: linear-gradient(
+          90deg,
+          var(--moxt-fill-1) 0%,
+          var(--moxt-fill-2) 20%,
+          var(--moxt-line-1) 40%,
+          var(--moxt-fill-2) 60%,
+          var(--moxt-fill-1) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.8s ease-in-out infinite;
+      }
+      
+      /* Alternative shimmer for dark backgrounds */
+      .shimmer-dark {
+        background: linear-gradient(
+          90deg,
+          rgba(255,255,255,0.1) 0%,
+          rgba(255,255,255,0.2) 20%,
+          rgba(255,255,255,0.3) 40%,
+          rgba(255,255,255,0.2) 60%,
+          rgba(255,255,255,0.1) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.8s ease-in-out infinite;
       }
     </style>
   <script type="importmap">
