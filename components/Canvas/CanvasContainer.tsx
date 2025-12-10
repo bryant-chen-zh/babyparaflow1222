@@ -33,6 +33,7 @@ interface CanvasContainerProps {
   // Agent progress visualization
   currentOperatingNodeId?: string | null;
   justCreatedNodeIds?: string[];
+  isObservationMode?: boolean;
 }
 
 interface SectionBounds {
@@ -191,7 +192,8 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     onNodeMentionSelect,
     onRemoveMention,
     currentOperatingNodeId = null,
-    justCreatedNodeIds = []
+    justCreatedNodeIds = [],
+    isObservationMode = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -240,6 +242,43 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const chartBounds = useMemo(() => getSectionBounds(chartNodes), [chartNodes]);
   const screenBounds = useMemo(() => getSectionBounds(screenNodes), [screenNodes]);
   const backendBounds = useMemo(() => getSectionBounds(backendNodes, 120), [backendNodes]);
+
+  // --- Auto-Center Logic for Observation Mode ---
+  useEffect(() => {
+    if (isObservationMode && currentOperatingNodeId && containerRef.current) {
+        const node = nodes.find(n => n.id === currentOperatingNodeId);
+        if (node) {
+            const { width, height } = getNodeDimensions(node);
+            const containerW = containerRef.current.clientWidth;
+            const containerH = containerRef.current.clientHeight;
+
+            // Target Ratio: Node should take up about 50% of the screen
+            const targetRatio = 0.5;
+            
+            const scaleByWidth = (containerW * targetRatio) / width;
+            const scaleByHeight = (containerH * targetRatio) / height;
+            
+            let targetScale = Math.min(scaleByWidth, scaleByHeight);
+            targetScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetScale));
+
+            const nodeCenterX = node.x + width / 2;
+            const nodeCenterY = node.y + height / 2;
+
+            // view.x = (containerW / 2) - nodeCenterX * targetScale
+            const newX = (containerW / 2) - (nodeCenterX * targetScale);
+            const newY = (containerH / 2) - (nodeCenterY * targetScale);
+
+            // Update only if significant change to prevent loops
+            if (
+                Math.abs(view.x - newX) > 1 || 
+                Math.abs(view.y - newY) > 1 || 
+                Math.abs(view.scale - targetScale) > 0.001
+            ) {
+                onViewChange({ x: newX, y: newY, scale: targetScale });
+            }
+        }
+    }
+  }, [isObservationMode, currentOperatingNodeId, nodes, view, onViewChange]);
 
   // Helpers
   const getCanvasCoords = (clientX: number, clientY: number) => {
@@ -882,6 +921,14 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
         </div>
       </div>
+
+      {/* --- Observation Mode Overlay (Restored and Styled) --- */}
+      <div 
+        className={`absolute inset-0 pointer-events-none z-[60] border-[4px] border-moxt-brand-7 shadow-[inset_0_0_0_2px_rgba(255,255,255,0.2)] transition-opacity duration-300 ${
+            isObservationMode ? 'opacity-100' : 'opacity-0'
+        }`} 
+      />
+
 
       {/* --- FLOATING TOOLBAR --- */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-moxt-fill-white rounded-full shadow-lg border border-moxt-line-1 p-1 flex items-center gap-0.5 z-50 transition-transform hover:scale-[1.02]">

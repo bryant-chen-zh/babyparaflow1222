@@ -25,54 +25,54 @@ import {
   MAX_ZOOM
 } from './constants';
 
-// --- Product Decision Questions Configuration ---
+// --- Product Decision Questions Configuration (Luma Context) ---
 const PRODUCT_QUESTIONS: QuestionData[] = [
   {
     questionId: 'q1',
-    questionText: 'What type of project do you want to build?',
+    questionText: 'What is the primary event strategy?',
     currentPage: 1,
     totalPages: 4,
     options: [
-      { id: 'saas', label: 'SaaS Product', description: 'CRM, project management tools, collaboration platforms' },
-      { id: 'ecommerce', label: 'E-commerce Platform', description: 'Product displays, shopping cart, payment system' },
-      { id: 'social', label: 'Social/Content Platform', description: 'User-generated content, feeds, community' },
-      { id: 'dashboard', label: 'Data Analytics/Dashboard', description: 'Charts, reports, data visualization' }
+      { id: 'social', label: 'Social & Mixers', description: 'Casual events, party vibe, map integration, guest networking' },
+      { id: 'professional', label: 'Professional Webinars', description: 'Zoom/Meet integration, recording gating, Q&A tools' },
+      { id: 'conference', label: 'Multi-track Conferences', description: 'Complex schedules, speaker profiles, ticketing tiers' },
+      { id: 'community', label: 'Community Series', description: 'Recurring events, newsletter bundling, member directory' }
     ]
   },
   {
     questionId: 'q2',
-    questionText: 'What is your core user scenario?',
+    questionText: 'Define the visual identity',
     currentPage: 2,
     totalPages: 4,
     options: [
-      { id: 'single', label: 'Single-user Operations', description: 'Personal tools, independent use' },
-      { id: 'collaboration', label: 'Multi-user Collaboration', description: 'Team workspaces, real-time collaboration' },
-      { id: 'marketplace', label: 'Two-sided Market', description: 'Buyers-sellers, creators-consumers' },
-      { id: 'admin-user', label: 'Admin-User Separation', description: 'Backend management + user-facing' }
+      { id: 'luma-dark', label: 'Dark Glassmorphism', description: 'Signature "Luma" look: dark mode, blurs, neon accents, cinematic' },
+      { id: 'swiss', label: 'Swiss Minimalist', description: 'Clean white, bold typography, grid layouts, high contrast' },
+      { id: 'playful', label: 'Gen Z / Pop', description: '3D elements, vibrant colors, rounded shapes, stickers' },
+      { id: 'corporate', label: 'Enterprise Clean', description: 'Subtle blues, information density, standard reliable UI' }
     ]
   },
   {
     questionId: 'q3',
-    questionText: 'What is your technical complexity level?',
+    questionText: 'Core growth & access model?',
     currentPage: 3,
     totalPages: 4,
     options: [
-      { id: 'mvp', label: 'MVP Quick Validation', description: 'Core features first, rapid launch' },
-      { id: 'standard', label: 'Standard Product', description: 'Common feature combinations, mature solutions' },
-      { id: 'custom', label: 'Custom Requirements', description: 'Special business logic, unique features' },
-      { id: 'enterprise', label: 'Enterprise/High-Performance', description: 'Performance optimization, distributed, large-scale' }
+      { id: 'viral', label: 'Viral / Open', description: 'Magic links, social graph sharing, "I am going" cards, one-click RSVP' },
+      { id: 'curated', label: 'Curated / Approval', description: 'Application forms, waitlists, manual approval flow, exclusivity' },
+      { id: 'paid', label: 'Paid / Ticketing', description: 'Stripe integration, early bird pricing, promo codes, refunds' },
+      { id: 'private', label: 'Private / Invite Only', description: 'Hidden events, password protection, specific email domains' }
     ]
   },
   {
     questionId: 'q4',
-    questionText: 'What is your preferred deployment and architecture?',
+    questionText: 'Data & Integration Ecosystem',
     currentPage: 4,
     totalPages: 4,
     options: [
-      { id: 'monolith', label: 'Monolithic Application', description: 'Monolithic architecture + relational database' },
-      { id: 'restful', label: 'Frontend-Backend Separation', description: 'React/Vue + RESTful API' },
-      { id: 'microservices', label: 'Microservices Architecture', description: 'Service splitting + message queues' },
-      { id: 'serverless', label: 'Serverless', description: 'Cloud functions + NoSQL database' }
+      { id: 'light', label: 'Lightweight Wrapper', description: 'Calendar sync + Email reminders only. Fast & simple.' },
+      { id: 'marketing', label: 'Marketing Suite', description: 'Sync with HubSpot/Salesforce, retargeting pixels, analytics' },
+      { id: 'content', label: 'Content Heavy', description: 'Host event recordings, slides, speaker notes, post-event gallery' },
+      { id: 'community-data', label: 'Member Graph', description: 'Track attendance history, member reputation, loyalty' }
     ]
   }
 ];
@@ -745,6 +745,7 @@ const App = () => {
 
   // Agent 进程可视化状态
   const [agentIsRunning, setAgentIsRunning] = useState(false);
+  const [isObservationMode, setIsObservationMode] = useState(false);
   const [currentOperatingNodeId, setCurrentOperatingNodeId] = useState<string | null>(null);
   const [justCreatedNodeIds, setJustCreatedNodeIds] = useState<string[]>([]);
   const [currentTaskName, setCurrentTaskName] = useState<string>('');
@@ -846,9 +847,30 @@ const App = () => {
   };
 
   // --- 问题处理函数 ---
-  const handleAnswerQuestion = (messageId: string, optionId: string) => {
-    // 组件内部已经管理答案状态，这里只需记录到全局状态（如果需要）
-    // 暂时保持简单，因为答案在组件内部管理
+  const handleAnswerQuestion = (messageId: string, questionId: string, optionId: string) => {
+    // 1. 更新全局 selectedAnswers 状态（方便其他逻辑使用）
+    setSelectedAnswers(prev => ({ ...prev, [questionId]: optionId }));
+
+    // 2. 更新 messages 中的问题状态，确保 UI 重新渲染时能保留选择
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId && msg.question) {
+        // 更新 allQuestions 数组中对应问题的 selectedOptionId
+        const updatedAllQuestions = (msg.question.allQuestions || [msg.question]).map(q => 
+          q.questionId === questionId ? { ...q, selectedOptionId: optionId } : q
+        );
+        
+        return {
+          ...msg,
+          question: {
+            ...msg.question,
+            allQuestions: updatedAllQuestions,
+            // 如果是单题模式，也更新外层的 selectedOptionId
+            selectedOptionId: msg.question.questionId === questionId ? optionId : msg.question.selectedOptionId
+          }
+        };
+      }
+      return msg;
+    }));
   };
 
   const handleContinueQuestion = async (messageId: string) => {
@@ -1036,28 +1058,7 @@ const App = () => {
   // 根据节点宽高动态计算缩放级别，确保节点占据视窗宽高的 50%
   const focusOnNode = (nodeId: string, nodeX: number, nodeY: number, nodeWidth: number, nodeHeight: number) => {
     setCurrentOperatingNodeId(nodeId);
-    
-    // 获取视窗尺寸（考虑左侧聊天栏，假设宽度约 420px）
-    const sidebarWidth = 420;
-    const viewportWidth = window.innerWidth - sidebarWidth;
-    const viewportHeight = window.innerHeight;
-    const targetRatio = 0.5; // 节点应占视窗宽高的 50%
-    
-    // 分别计算基于宽度和高度的缩放级别
-    const scaleByWidth = (viewportWidth * targetRatio) / nodeWidth;
-    const scaleByHeight = (viewportHeight * targetRatio) / nodeHeight;
-    
-    // 取较小值，确保节点完全可见
-    let calculatedScale = Math.min(scaleByWidth, scaleByHeight);
-    
-    // 限制缩放范围在 MIN_ZOOM 和 MAX_ZOOM 之间
-    calculatedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, calculatedScale));
-    
-    // 将镜头中心点偏移到节点中心（考虑节点尺寸）
-    const nodeCenterX = nodeX + nodeWidth / 2;
-    const nodeCenterY = nodeY + nodeHeight / 2;
-    
-    panTo(nodeCenterX, nodeCenterY, calculatedScale);
+    // Camera pan logic is now handled in CanvasContainer via useEffect listening to currentOperatingNodeId
   };
 
   // 辅助函数：标记节点刚被创建（用于弹出动画）
@@ -1076,6 +1077,7 @@ const App = () => {
 
     // 开始 Agent 运行
     setAgentIsRunning(true);
+    setIsObservationMode(true); // Auto-enable observation mode
 
     // ============================================
     // PHASE 1: Drafting Product Strategy
@@ -1490,6 +1492,7 @@ const App = () => {
 
     // 结束 Agent 运行
     setAgentIsRunning(false);
+    setIsObservationMode(false); // Auto-disable observation mode
     setCurrentOperatingNodeId(null);
     setCurrentTaskName('');
 
@@ -1758,6 +1761,7 @@ const App = () => {
             onRemoveMention={handleRemoveMention}
             currentOperatingNodeId={currentOperatingNodeId}
             justCreatedNodeIds={justCreatedNodeIds}
+            isObservationMode={isObservationMode}
         />
 
         {/* Agent Status Panel - 画布顶部居中 */}
@@ -1765,6 +1769,8 @@ const App = () => {
           plan={currentPlan}
           isRunning={agentIsRunning}
           currentTaskName={currentTaskName}
+          isObservationMode={isObservationMode}
+          onToggleObservation={() => setIsObservationMode(!isObservationMode)}
         />
 
         {runningScreenId && (

@@ -4,7 +4,7 @@ import { HelpCircle, ChevronUp, ChevronDown, Check } from 'lucide-react';
 
 interface QuestionCardProps {
   question: QuestionData;
-  onSelectOption: (optionId: string) => void;
+  onSelectOption: (questionId: string, optionId: string) => void;
   onSkip: () => void;
   onContinue: () => void;
   collapsed?: boolean;
@@ -36,7 +36,7 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
       }
     });
     setSelectedAnswers(initialAnswers);
-  }, []);
+  }, [allQuestions]);
 
   // 滚动到指定题目
   const scrollToQuestion = (index: number) => {
@@ -52,7 +52,7 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
     setSelectedAnswers(prev => ({ ...prev, [questionId]: optionId }));
 
     // 通知父组件
-    onSelectOption(optionId);
+    onSelectOption(questionId, optionId);
 
     // 找到当前题目的索引
     const currentQuestionIndex = allQuestions.findIndex(q => q.questionId === questionId);
@@ -148,7 +148,7 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
       </div>
 
       {/* Scrollable Questions Container */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scroll-pb-20">
         {allQuestions.map((q, qIndex) => {
           const isCurrentQuestion = qIndex === currentIndex;
           const isAnswered = !!selectedAnswers[q.questionId];
@@ -158,7 +158,7 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
             <div
               key={q.questionId}
               ref={el => (questionRefs.current[qIndex] = el)}
-              className="space-y-2"
+              className="space-y-2 scroll-mt-3"
             >
               {/* Question Title */}
               <div className="flex items-start gap-2">
@@ -203,6 +203,9 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
             </div>
           );
         })}
+        
+        {/* Spacer to allow scrolling last item to top */}
+        <div className="h-80 flex-shrink-0" aria-hidden="true" />
       </div>
 
       {/* Fixed Bottom Buttons */}

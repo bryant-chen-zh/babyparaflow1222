@@ -29,7 +29,7 @@ interface ChatSidebarProps {
   selectedNodeForMention?: { nodeId: string; nodeTitle: string } | null;
   onClearSelectedNode?: () => void;
   onStartExecution?: (messageId: string) => void;
-  onAnswerQuestion?: (messageId: string, optionId: string) => void;
+  onAnswerQuestion?: (messageId: string, questionId: string, optionId: string) => void;
   onSkipQuestion?: (messageId: string) => void;
   onContinueQuestion?: (messageId: string) => void;
   onLocateNode?: (nodeId: string) => void;
@@ -1038,7 +1038,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             return (
               <QuestionCard
                 question={msg.question}
-                onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
+                onSelectOption={(questionId, optionId) => onAnswerQuestion?.(msg.id, questionId, optionId)}
                 onSkip={() => onSkipQuestion?.(msg.id)}
                 onContinue={() => onContinueQuestion?.(msg.id)}
                 collapsed={msg.collapsed}
@@ -1223,7 +1223,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         {messages.filter(msg => msg.type === 'question' && msg.question && !msg.collapsed).map(msg => (
           <QuestionCard
             question={msg.question!}
-            onSelectOption={(optionId) => onAnswerQuestion?.(msg.id, optionId)}
+            onSelectOption={(questionId, optionId) => onAnswerQuestion?.(msg.id, questionId, optionId)}
             onSkip={() => onSkipQuestion?.(msg.id)}
             onContinue={() => onContinueQuestion?.(msg.id)}
             collapsed={false}
