@@ -836,7 +836,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
             </svg>
 
             {/* --- NODES --- */}
-            {nodes.map(node => {
+            {nodes.map((node, index) => {
                 const dims = getNodeDimensions(node);
                 const isSelected = selectedNodeIds.includes(node.id);
                 const isMentioned = mentionedNodeIds.includes(node.id);
@@ -846,13 +846,23 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 const isOperating = currentOperatingNodeId === node.id;
                 const isJustCreated = justCreatedNodeIds.includes(node.id);
 
+                // 动态计算 z-index：基础层级 + 交互状态提升
+                // 基础层级：按数组顺序，后创建的节点在上层
+                // 交互提升：选中/拖动/操作中的节点提升到最上层
+                let zIndex = 10 + index; // 基础层级
+                if (isHovered) zIndex = 100 + index;
+                if (isSelected) zIndex = 200 + index;
+                if (isMentioned) zIndex = 300 + index;
+                if (isDragging) zIndex = 400;
+                if (isOperating) zIndex = 500;
+
                 return (
                 <div
                     key={node.id}
                     data-id={node.id}
                     className={`canvas-node absolute shadow-sm rounded-lg bg-moxt-fill-white border border-moxt-line-1
                         ${!isDragging && !isJustCreated ? 'transition-all duration-200' : ''}
-                        ${node.type === NodeType.SCREEN || isMentioned || isOperating ? 'z-20 overflow-visible' : 'z-10 overflow-hidden'}
+                        ${node.type === NodeType.SCREEN || isMentioned || isOperating ? 'overflow-visible' : 'overflow-hidden'}
                         ${isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
                         ${isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
                         ${isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
@@ -870,6 +880,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         top: node.y,
                         width: dims.width,
                         height: dims.height,
+                        zIndex,
                         willChange: isDragging ? 'transform' : 'auto'
                     }}
                     onMouseEnter={() => setHoveredNodeId(node.id)}
