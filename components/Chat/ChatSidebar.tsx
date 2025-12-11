@@ -7,6 +7,7 @@ import { QuestionCard } from './QuestionCard';
 import { FloatingTodoBar } from './FloatingTodoBar';
 import { FileOperationCard } from './FileOperationCard';
 import { ThinkingMessage } from './ThinkingMessage';
+import { ConfirmationCard } from './ConfirmationCard';
 import { parseMarkdown, renderInlineStyles, Block } from '../../utils/markdownUtils';
 
 // Sidebar width constraints
@@ -36,6 +37,8 @@ interface ChatSidebarProps {
   currentPlan?: PlanStep[] | null;
   onNewChat?: () => void;
   onViewHistory?: () => void;
+  onConfirm?: (messageId: string) => void;
+  onRequestRevision?: (messageId: string, note: string) => void;
 }
 
 // Helper function to get node icon
@@ -101,7 +104,9 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onLocateNode,
   currentPlan,
   onNewChat,
-  onViewHistory
+  onViewHistory,
+  onConfirm,
+  onRequestRevision
 }) => {
   // State
   const [input, setInput] = useState('');
@@ -1059,6 +1064,19 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           // Thinking message
           if (msg.type === 'thinking' && msg.thinking) {
             return <ThinkingMessage thinking={msg.thinking} />;
+          }
+
+          // Confirmation message - Chat confirmation mode
+          if (msg.type === 'confirmation' && msg.confirmation) {
+            return (
+              <ConfirmationCard
+                key={msg.id}
+                data={msg.confirmation}
+                onConfirm={() => onConfirm?.(msg.id)}
+                onRequestRevision={(note) => onRequestRevision?.(msg.id, note)}
+                onLocate={() => onLocateNode?.(msg.confirmation!.targetNodeId)}
+              />
+            );
           }
 
           // User and AI messages
