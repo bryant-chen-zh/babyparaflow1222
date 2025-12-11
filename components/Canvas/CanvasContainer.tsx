@@ -861,6 +861,9 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
                         ${isOperating ? 'node-operating' : ''}
                         ${isJustCreated ? 'node-just-created' : ''}
+                        ${node.confirmationStatus === 'pending' ? 'ring-2 ring-orange-500 animate-pulse' : ''}
+                        ${node.confirmationStatus === 'confirmed' ? 'ring-2 ring-green-500' : ''}
+                        ${node.confirmationStatus === 'revision_requested' ? 'ring-2 ring-red-500' : ''}
                     `}
                     style={{
                         left: node.x,
@@ -905,6 +908,19 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                             onRemove={() => onRemoveMention(node.id)}
                         />
                     )}
+
+                    {/* Confirmation Status Badge */}
+                    {node.confirmationStatus && (
+                        <div className={`absolute -top-2 -right-2 z-30 px-2 py-1 rounded-full text-xs font-semibold shadow-md flex items-center gap-1
+                            ${node.confirmationStatus === 'pending' ? 'bg-orange-500 text-white' : ''}
+                            ${node.confirmationStatus === 'confirmed' ? 'bg-green-500 text-white' : ''}
+                            ${node.confirmationStatus === 'revision_requested' ? 'bg-red-500 text-white' : ''}
+                        `}>
+                            {node.confirmationStatus === 'pending' && '⏳ Pending'}
+                            {node.confirmationStatus === 'confirmed' && '✓ Confirmed'}
+                            {node.confirmationStatus === 'revision_requested' && '✎ Revision'}
+                        </div>
+                    )}
                 </div>
             )})}
 
@@ -921,13 +937,6 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
         </div>
       </div>
-
-      {/* --- Observation Mode Overlay (Restored and Styled) --- */}
-      <div 
-        className={`absolute inset-0 pointer-events-none z-[60] border-[4px] border-moxt-brand-7 shadow-[inset_0_0_0_2px_rgba(255,255,255,0.2)] transition-opacity duration-300 ${
-            isObservationMode ? 'opacity-100' : 'opacity-0'
-        }`} 
-      />
 
 
       {/* --- FLOATING TOOLBAR --- */}
