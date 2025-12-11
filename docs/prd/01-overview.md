@@ -54,15 +54,37 @@ Visual Coding Agent 是一个**可视化产品规划工具**，通过无限画�
 └─────────────────────────────────────────┘
 ```
 
+## 产物体系
+
+Visual Coding Agent 采用层次化的产物体系，确保从需求到实现的完整追溯：
+
+| Artifact | 角色与定义 | 更新时机 |
+|----------|------------|----------|
+| **User Story Map** | 骨架 (The Backbone) - 项目范围的唯一真理来源 | 每次迭代必更，必须在写代码前更新 |
+| **User Flow** | 神经系统 (The Nervous System) - 交互逻辑的唯一真理来源 | 当涉及页面跳转或复杂交互逻辑变更时 |
+| **PRD / Screen Plans** | 肌肉 (The Muscle) - 指导代码生成的详细规格说明 | 按需生成/更新，作为给 Coder 的指令书 |
+| **Project Charter** | 宪章 (The Constitution) - 顶层愿景与初始契约 | 仅在项目启动或重大转型时 |
+| **Persona / Empathy Map** | 支撑背景 (Supporting Context) - 深度用户洞察 | 在启动阶段或解决复杂 UX 问题时 |
+
+### 产物生成流程
+
+```
+Project Setup → Define (Story Map → Flow → PRD) → Prototype → Backend
+                         ↓           ↓        ↓
+                      确认点1     确认点2   确认点3
+```
+
+关键产物（Story Map、User Flow、PRD）生成后需要用户确认，确保需求定义正确后再生成原型。
+
 ## 核心模块
 
 1. **Canvas System** - 无限画布、视图控制、Section 管理
-2. **Node System** - 6 种节点类型及其渲染和交互
-3. **Chat System** - AI 对话界面、工具调用展示、问题卡片、执行计划展示
+2. **Node System** - 5 种节点类型及其渲染和交互
+3. **Chat System** - AI 对话界面、工具调用展示、问题卡片、执行计划展示、**确认交互**
 4. **Editor System** - 各类内容编辑器
 5. **Preview System** - 原型预览和导航
-6. **Workflow Engine** - 模拟演示编排引擎
-7. **Message System** - 多类型消息展示（文本、工具调用、问题、计划）
+6. **Workflow Engine** - 模拟演示编排引擎，**支持渐进式确认**
+7. **Message System** - 多类型消息展示（文本、工具调用、问题、计划、**确认**）
 
 ## 设计系统
 
@@ -117,7 +139,8 @@ Visual Coding Agent 是一个**可视化产品规划工具**，通过无限画�
 ## 成功指标
 
 ### 短期（MVP）
-- 完整演示 6 幕工作流
+- 完整演示 6 幕工作流（Project Setup → Story Map → Flow → PRD → Prototype → Backend）
+- 支持 3 个确认点的渐进式交互
 - 支持基本编辑功能
 - 画布操作流畅（60fps）
 
@@ -125,6 +148,7 @@ Visual Coding Agent 是一个**可视化产品规划工具**，通过无限画�
 - 用户可自定义工作流
 - 支持导出为真实项目
 - 多用户协作
+- 确认历史记录和回溯
 
 ### 长期
 - 成为产品规划的行业标准工具

@@ -26,54 +26,39 @@ import {
 } from './constants';
 import { streamTextDynamic } from './utils/streamText';
 
-// --- Product Decision Questions Configuration (Luma Context) ---
-const PRODUCT_QUESTIONS: QuestionData[] = [
+// --- Step 0: Handshake Questions Configuration ---
+// These questions help clarify: Problem, User, Scope before diving into Define
+const HANDSHAKE_QUESTIONS: QuestionData[] = [
   {
-    questionId: 'q1',
-    questionText: 'What is the primary event strategy?',
+    questionId: 'problem',
+    questionText: '你希望这个平台最优先解决的具体问题是什么？',
     currentPage: 1,
-    totalPages: 4,
+    totalPages: 3,
     options: [
-      { id: 'social', label: 'Social & Mixers', description: 'Casual events, party vibe, map integration, guest networking' },
-      { id: 'professional', label: 'Professional Webinars', description: 'Zoom/Meet integration, recording gating, Q&A tools' },
-      { id: 'conference', label: 'Multi-track Conferences', description: 'Complex schedules, speaker profiles, ticketing tiers' },
-      { id: 'community', label: 'Community Series', description: 'Recurring events, newsletter bundling, member directory' }
+      { id: 'review', label: '远程视频审片', description: '给客户发视频链接，对方能按时间轴留言反馈' },
+      { id: 'version', label: '多人版本管理', description: '追踪不同版本、迭代历史' },
+      { id: 'task', label: '带任务的协作', description: '分配和追踪修改任务' }
     ]
   },
   {
-    questionId: 'q2',
-    questionText: 'Define the visual identity',
+    questionId: 'user',
+    questionText: '第一批目标用户是谁？',
     currentPage: 2,
-    totalPages: 4,
+    totalPages: 3,
     options: [
-      { id: 'luma-dark', label: 'Dark Glassmorphism', description: 'Signature "Luma" look: dark mode, blurs, neon accents, cinematic' },
-      { id: 'swiss', label: 'Swiss Minimalist', description: 'Clean white, bold typography, grid layouts, high contrast' },
-      { id: 'playful', label: 'Gen Z / Pop', description: '3D elements, vibrant colors, rounded shapes, stickers' },
-      { id: 'corporate', label: 'Enterprise Clean', description: 'Subtle blues, information density, standard reliable UI' }
+      { id: 'indie', label: '独立创作者', description: '自由职业视频创作者' },
+      { id: 'studio', label: '小型工作室', description: '2-10人的创意团队' },
+      { id: 'agency', label: '代理商/大公司', description: '需要复杂权限管理' }
     ]
   },
   {
-    questionId: 'q3',
-    questionText: 'Core growth & access model?',
+    questionId: 'scope',
+    questionText: '这轮你更想先做什么？',
     currentPage: 3,
-    totalPages: 4,
+    totalPages: 3,
     options: [
-      { id: 'viral', label: 'Viral / Open', description: 'Magic links, social graph sharing, "I am going" cards, one-click RSVP' },
-      { id: 'curated', label: 'Curated / Approval', description: 'Application forms, waitlists, manual approval flow, exclusivity' },
-      { id: 'paid', label: 'Paid / Ticketing', description: 'Stripe integration, early bird pricing, promo codes, refunds' },
-      { id: 'private', label: 'Private / Invite Only', description: 'Hidden events, password protection, specific email domains' }
-    ]
-  },
-  {
-    questionId: 'q4',
-    questionText: 'Data & Integration Ecosystem',
-    currentPage: 4,
-    totalPages: 4,
-    options: [
-      { id: 'light', label: 'Lightweight Wrapper', description: 'Calendar sync + Email reminders only. Fast & simple.' },
-      { id: 'marketing', label: 'Marketing Suite', description: 'Sync with HubSpot/Salesforce, retargeting pixels, analytics' },
-      { id: 'content', label: 'Content Heavy', description: 'Host event recordings, slides, speaker notes, post-event gallery' },
-      { id: 'community-data', label: 'Member Graph', description: 'Track attendance history, member reputation, loyalty' }
+      { id: 'mvp', label: '极小闭环 MVP', description: '发链接 → 时间轴评论 → 看汇总 (3屏)' },
+      { id: 'framework', label: '功能多但浅的框架', description: '展示平台的整体结构' }
     ]
   }
 ];
@@ -113,20 +98,37 @@ const FOOTER_HTML = `
 
 // --- MOCK DATA ---
 const MOCK_LUMA_DATA: {
-  // Act 1: Project Setup
+  // Step 0: Handshake outputs
   projectCharter: DocumentData;
   persona: DocumentData;
-  // Act 2: Story Map
+  
+  // D1: MVP Card Plan (Define L1)
+  d1MvpCardPlan: DocumentData;
+  d1UserFlow: WhiteboardData;  // Simple 3-screen flow
+  
+  // S1: Fast Prototype - 3 Screen MVP
+  s1ScreenA: ScreenData;  // Home/Search
+  s1ScreenB: ScreenData;  // Event Detail + Register
+  s1ScreenC: ScreenData;  // Success
+  
+  // D5: Structured Plan (Define L5)
+  d5StoryMap: WhiteboardData;
+  d5UserFlow: WhiteboardData;
+  d5PrdDiscovery: DocumentData;
+  d5PrdDetail: DocumentData;
+  d5PrdRegistration: DocumentData;
+  
+  // D9: Build Task Spec (Define L9)
+  d9BuildSpec: DocumentData;
+  
+  // Legacy data (keeping for backward compatibility)
   storyMap: WhiteboardData;
-  // Act 3: User Flow
   userFlow: WhiteboardData;
-  // Act 4: PRD Documents
   prdHome: DocumentData;
   prdExplore: DocumentData;
   prdDetail: DocumentData;
   prdCreate: DocumentData;
   prdProfile: DocumentData;
-  // Legacy (keeping for backward compatibility)
   doc1: DocumentData;
   doc2: DocumentData;
   doc3: DocumentData;
@@ -146,59 +148,535 @@ const MOCK_LUMA_DATA: {
 } = {
   // === Act 1: Project Setup ===
   projectCharter: {
-    content: `# Product Charter: Paraflow Clone
+    content: `# Product Charter（本轮迭代：Remote video review MVP）
 
-## Vision
-To build the **Operating System for Communities**. We want to make gathering people together as easy and beautiful as creating a Notion page.
+## Problem
+独立视频创作者给客户/合作者发片子时，反馈散落在不同渠道（微信、邮件、Drive 评论），
+时间点、版本、结论都很混乱，反复对齐成本极高。
 
-## Core Principles
-1. **Design First:** Events are social signaling. They must look amazing.
-2. **Minimal Friction:** One-click registration. Magic links. No passwords.
-3. **Calendar Centric:** If it's not on the calendar, it doesn't exist.
+## Goal（本轮）
+做一个「**超轻量视频审片链接**」：
+- 创作者可以创建一个 review 链接
+- 合作者可以在同一个页面上边看边按时间点留言
+- 创作者能在一个地方看到所有时间轴评论
 
-## Success Metrics
-- **Activation Rate:** 60% of signups create their first event within 7 days
-- **Viral Coefficient:** 1.5+ (each event brings in 1.5 new users)
-- **NPS Score:** 50+ among active hosts
+## In Scope（这轮要做）
+- 创作者粘贴一个视频链接（或上传占位），生成一个 review 房间
+- 在这个房间里，用户可以播放视频，在当前时间点添加评论
+- 评论按时间轴展示
+- 有一个简单的「评论汇总视图」
+
+## Out of Scope（这轮不做）
+- 多项目、多文件管理
+- 复杂权限（viewer / editor / client 角色区分）
+- 真正的团队工作区、任务分配
+- 真正的账号系统（可以先匿名或 magic link）
+
+## Success Criteria
+- 在 1 个 URL 内，完成「播放视频 → 添加 3 条以上时间点评论 → 查看评论列表」
+- 创作者 demo 给别人看时，可以清楚说明「这就是审片场景的样子」
 `
   },
   persona: {
-    content: `# User Personas
+    content: `# Persona（本轮聚焦对象）
 
-## The Social Explorer
-**Demographics:**
-- Age: 25-40
-- Occupation: Tech/Creative Professionals
-- Location: Urban Hubs (SF, NYC, London)
+## Alex - 独立视频创作者
 
-**Goals:**
-- Find unique, high-quality events.
-- Connect with like-minded peers.
-- Avoid "spammy" or generic meetups.
+**身份**：
+- 独立视频创作者 / 小型工作室主理人
+- 自由职业，习惯远程协作
 
-**Frustrations:**
-- Clunky RSVP processes (Eventbrite).
-- Ugly event pages.
-- Disconnected calendars.
+**场景**：
+- 深夜在家剪片
+- 想把 rough cut 发给客户/朋友，请他们给反馈
+- 时间紧张，不想教客户用复杂工具
 
-## The Community Builder
-**Demographics:**
-- Age: 28-45
-- Occupation: Startup Founders, Community Managers
-- Location: Tech Hubs
+**诉求**：
+- 只想发一个链接，对方可以边看边说：
+  - "这里多 3 秒"
+  - "这句对白太小声"
+  - "这个转场太突兀了"
+- 然后自己能在一个视图里看到所有反馈，按时间排好
 
-**Goals:**
-- Build and nurture a community around their brand.
-- Track engagement and attendee insights.
-- Create beautiful, shareable event pages.
-
-**Frustrations:**
-- Fragmented tools (Notion + Calendly + Mailchimp).
-- No unified view of community engagement.
+**痛点**：
+- 反馈散落在微信、邮件、Drive 评论中
+- 时间点描述不准确（"大概中间那段"）
+- 反复对齐成本高
 `
   },
 
-  // === Act 2: Story Map ===
+  // === D1: MVP Card Plan (Define L1) ===
+  d1MvpCardPlan: {
+    content: `# D1: MVP Card Plan（单条视频审片闭环）
+
+## Goal（本轮目标）
+让 Alex 可以在一个页面内创建一个视频审片房间，
+自己（或合作者）可以在同一页面边看边按时间点添加评论，
+最后在一个简单的汇总视图里看到所有评论。
+
+## User / Context
+- **用户**: Alex（独立视频创作者）
+- **场景**: 桌面端浏览器为主，这轮先不做移动适配
+
+## Happy Path User Story
+「作为一个视频创作者，我想快速创建一个视频审片页面，让我和合作者可以在同一个地方边看边按时间点评论，这样我就不会在各个渠道到处翻反馈。」
+
+## User Flow（3 屏）
+1. **Screen A: Create review**
+   - Alex 输入项目名
+   - Alex 粘贴一个视频链接（例如 mp4 / Vimeo 占位）
+   - 点击「Create review room」
+2. **Screen B: Review room**
+   - 展示视频播放器
+   - 下方有一个 input：「Add comment at current time」
+   - Alex 播放到某一帧，点击暂停，在输入框里打字 → 点击「Add」
+   - 评论出现在右侧列表，按时间排序
+   - 下方有一个「Finish reviewing」按钮
+3. **Screen C: Summary**
+   - 展示这个视频下所有评论（时间戳 + 文本），按时间排序
+   - 有一个「Back to review room」按钮，可以再回去继续看
+   - 有一个「Copy share link」按钮
+
+## 核心功能说明（L1 粒度）
+1. **Create review**
+   - 字段：projectTitle, videoUrl
+   - 行为：点击「Create review room」后，生成一个临时 review ID，并跳转到 Review room
+
+2. **Review room**
+   - 播放器：支持播放/暂停/时间拖动（可先用浏览器原生 video）
+   - 评论输入框：
+     - 「Current time」由播放器提供
+     - 点击「Add」时记录（timestamp, text）
+   - 评论列表：右侧按 timestamp 升序展示
+
+3. **Summary**
+   - 展示这次会话的所有评论
+   - 暂时不支持「已处理」状态，只做列表
+   - 「Copy share link」可以是一个假按钮，也可以复制当前 URL
+`
+  },
+
+  d1UserFlow: {
+    elements: [
+      // Simple 3-screen flow for video review MVP
+      { id: 'start', type: 'circle', x: 50, y: 150, width: 80, height: 80, content: 'Alex\\nLands', color: '#0f172a' },
+      { id: 'a1', type: 'arrow', x: 130, y: 190, width: 80, height: 0, content: '', color: '#94a3b8' },
+      { id: 'screen-a', type: 'rect', x: 210, y: 160, width: 140, height: 60, content: 'A: Create review', color: '#3B82F6' },
+      { id: 'a2', type: 'arrow', x: 350, y: 190, width: 80, height: 0, content: 'Create', color: '#94a3b8' },
+      { id: 'screen-b', type: 'rect', x: 430, y: 160, width: 140, height: 60, content: 'B: Review room', color: '#3B82F6' },
+      { id: 'a3', type: 'arrow', x: 570, y: 190, width: 80, height: 0, content: 'Finish', color: '#94a3b8' },
+      { id: 'screen-c', type: 'rect', x: 650, y: 160, width: 120, height: 60, content: 'C: Summary', color: '#10b981' },
+      // Label
+      { id: 'label', type: 'text', x: 350, y: 80, width: 200, height: 30, content: 'Video Review MVP (3 Screens)', color: '#64748B' },
+    ]
+  },
+
+  // === S1: Fast Prototype - 3 Screen MVP ===
+  s1ScreenA: {
+    screenName: "Create review",
+    variant: 'web',
+    plan: `# Screen A: Create review
+- **Goal**: 让创作者快速创建一个视频审片房间
+- **Layout**: 简洁的表单，输入项目名和视频链接
+- **Action**: 点击创建后进入 Review room
+`,
+    htmlContent: `
+      <div class="bg-slate-900 min-h-full font-sans text-white flex flex-col">
+        <nav class="h-16 border-b border-slate-800 flex items-center justify-between px-8 sticky top-0 bg-slate-900/95 backdrop-blur z-30">
+          <div class="text-xl font-bold tracking-tighter text-white flex items-center gap-2">
+            <div class="w-6 h-6 bg-violet-500 rounded-lg"></div> FrameFlow
+          </div>
+          <span class="text-xs text-slate-500">Video Review Platform</span>
+        </nav>
+        <main class="flex-1 flex items-center justify-center px-8 py-12">
+          <div class="w-full max-w-md">
+            <h1 class="text-3xl font-bold text-white mb-2">Start a new video review</h1>
+            <p class="text-slate-400 mb-8">Share your video and collect feedback with timecoded comments.</p>
+            
+            <div class="space-y-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Project title</label>
+                <input type="text" placeholder="e.g. Brand Video v2 - Rough Cut" 
+                  class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none" />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Video URL</label>
+                <input type="text" placeholder="Paste video link (mp4, Vimeo, YouTube...)" 
+                  class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none" />
+              </div>
+              
+              <button class="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-colors" data-to="node-s1-b">
+                Create review room
+              </button>
+              
+              <p class="text-center text-xs text-slate-500">No login required in this MVP.</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    `
+  },
+
+  s1ScreenB: {
+    screenName: "Review room",
+    variant: 'web',
+    plan: `# Screen B: Review room
+- **Goal**: 让用户边看视频边按时间点添加评论
+- **Layout**: 左侧视频播放器，右侧评论面板
+- **Key CTA**: Add comment 按钮
+`,
+    htmlContent: `
+      <div class="bg-slate-900 min-h-full font-sans text-white flex flex-col">
+        <nav class="h-14 border-b border-slate-800 flex items-center justify-between px-6 sticky top-0 bg-slate-900/95 backdrop-blur z-30">
+          <div class="flex items-center gap-4">
+            <div class="text-lg font-bold tracking-tighter text-white flex items-center gap-2">
+              <div class="w-5 h-5 bg-violet-500 rounded"></div> FrameFlow
+            </div>
+            <span class="text-slate-500">•</span>
+            <span class="text-sm text-slate-300">Brand Video v2 - Rough Cut</span>
+          </div>
+          <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-colors" data-to="node-s1-c">
+            Finish reviewing
+          </button>
+        </nav>
+        <main class="flex-1 flex">
+          <!-- Video Player Section -->
+          <div class="flex-1 p-6">
+            <div class="aspect-video bg-slate-800 rounded-xl overflow-hidden relative">
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="text-center">
+                  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </div>
+                  <p class="text-slate-400 text-sm">Video Player</p>
+                </div>
+              </div>
+              <!-- Playback bar -->
+              <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                <div class="flex items-center gap-3">
+                  <button class="text-white"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+                  <span class="text-xs text-white font-mono">01:23</span>
+                  <div class="flex-1 h-1 bg-slate-600 rounded-full">
+                    <div class="w-1/3 h-full bg-violet-500 rounded-full"></div>
+                  </div>
+                  <span class="text-xs text-slate-400 font-mono">04:32</span>
+                </div>
+              </div>
+            </div>
+            <!-- Comment input -->
+            <div class="mt-4 p-4 bg-slate-800 rounded-xl">
+              <div class="flex items-center gap-3">
+                <span class="px-2 py-1 bg-violet-600 text-white text-xs font-mono rounded">01:23</span>
+                <input type="text" placeholder="Add a comment at this timestamp..." 
+                  class="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none" />
+                <button class="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors">
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Comments Panel -->
+          <div class="w-80 border-l border-slate-800 flex flex-col">
+            <div class="p-4 border-b border-slate-800">
+              <h3 class="font-bold text-white">Comments</h3>
+              <p class="text-xs text-slate-500">3 comments on this cut</p>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+              <div class="p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-1.5 py-0.5 bg-violet-600/30 text-violet-400 text-xs font-mono rounded">00:15</span>
+                </div>
+                <p class="text-sm text-slate-300">这里多了 3 秒，节奏有点拖</p>
+              </div>
+              <div class="p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-1.5 py-0.5 bg-violet-600/30 text-violet-400 text-xs font-mono rounded">01:42</span>
+                </div>
+                <p class="text-sm text-slate-300">这句对白声音太小了</p>
+              </div>
+              <div class="p-3 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-750">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-1.5 py-0.5 bg-violet-600/30 text-violet-400 text-xs font-mono rounded">03:28</span>
+                </div>
+                <p class="text-sm text-slate-300">转场有点突兀，可以加个淡出？</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    `
+  },
+
+  s1ScreenC: {
+    screenName: "Summary",
+    variant: 'web',
+    plan: `# Screen C: Review Summary
+- **Goal**: 展示所有时间轴评论的汇总视图
+- **Content**: 评论列表按时间排序，显示总数
+- **Action**: 返回 Review room 或复制分享链接
+`,
+    htmlContent: `
+      <div class="bg-slate-900 min-h-full font-sans text-white flex flex-col">
+        <nav class="h-14 border-b border-slate-800 flex items-center justify-between px-6 sticky top-0 bg-slate-900/95 backdrop-blur z-30">
+          <div class="flex items-center gap-4">
+            <div class="text-lg font-bold tracking-tighter text-white flex items-center gap-2">
+              <div class="w-5 h-5 bg-violet-500 rounded"></div> FrameFlow
+            </div>
+            <span class="text-slate-500">•</span>
+            <span class="text-sm text-slate-300">Review Summary</span>
+          </div>
+        </nav>
+        <main class="flex-1 max-w-2xl mx-auto w-full px-8 py-12">
+          <div class="flex items-center justify-between mb-8">
+            <div>
+              <h1 class="text-2xl font-bold text-white mb-1">Brand Video v2 - Rough Cut</h1>
+              <p class="text-slate-400">3 comments on this cut</p>
+            </div>
+            <div class="flex gap-3">
+              <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-colors" data-to="node-s1-b">
+                Back to review
+              </button>
+              <button class="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors">
+                Copy share link
+              </button>
+            </div>
+          </div>
+          
+          <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+            <div class="divide-y divide-slate-700">
+              <div class="p-4 flex items-start gap-4 hover:bg-slate-800/50 transition-colors cursor-pointer">
+                <span class="px-2 py-1 bg-violet-600/30 text-violet-400 text-xs font-mono rounded whitespace-nowrap">00:15</span>
+                <p class="text-slate-300">这里多了 3 秒，节奏有点拖</p>
+              </div>
+              <div class="p-4 flex items-start gap-4 hover:bg-slate-800/50 transition-colors cursor-pointer">
+                <span class="px-2 py-1 bg-violet-600/30 text-violet-400 text-xs font-mono rounded whitespace-nowrap">01:42</span>
+                <p class="text-slate-300">这句对白声音太小了</p>
+              </div>
+              <div class="p-4 flex items-start gap-4 hover:bg-slate-800/50 transition-colors cursor-pointer">
+                <span class="px-2 py-1 bg-violet-600/30 text-violet-400 text-xs font-mono rounded whitespace-nowrap">03:28</span>
+                <p class="text-slate-300">转场有点突兀，可以加个淡出？</p>
+              </div>
+            </div>
+          </div>
+          
+          <p class="mt-6 text-center text-xs text-slate-500">
+            This MVP summary is read-only; resolving comments is in future iterations.
+          </p>
+        </main>
+      </div>
+    `
+  },
+
+  // === D5: Structured Plan (Define L5) ===
+  d5StoryMap: {
+    elements: [
+      // Epic 1: 创建审片会话
+      { id: 'epic-1', type: 'rect', x: 50, y: 50, width: 180, height: 60, content: 'Epic: 创建审片会话', color: '#3B82F6' },
+      { id: 'story-1-1', type: 'rect', x: 50, y: 130, width: 160, height: 50, content: '输入项目信息', color: '#93C5FD' },
+      { id: 'story-1-2', type: 'rect', x: 50, y: 200, width: 160, height: 50, content: '生成 review 房间', color: '#BFDBFE' },
+      // Epic 2: 时间轴评论
+      { id: 'epic-2', type: 'rect', x: 280, y: 50, width: 180, height: 60, content: 'Epic: 时间轴评论', color: '#10B981' },
+      { id: 'story-2-1', type: 'rect', x: 280, y: 130, width: 160, height: 50, content: '播放视频', color: '#6EE7B7' },
+      { id: 'story-2-2', type: 'rect', x: 280, y: 200, width: 160, height: 50, content: '添加时间点评论', color: '#A7F3D0' },
+      { id: 'story-2-3', type: 'rect', x: 280, y: 270, width: 160, height: 50, content: '点击评论跳转', color: '#D1FAE5' },
+      // Epic 3: 汇总与回看
+      { id: 'epic-3', type: 'rect', x: 510, y: 50, width: 180, height: 60, content: 'Epic: 汇总与回看', color: '#F59E0B' },
+      { id: 'story-3-1', type: 'rect', x: 510, y: 130, width: 160, height: 50, content: '查看评论汇总', color: '#FCD34D' },
+      { id: 'story-3-2', type: 'rect', x: 510, y: 200, width: 160, height: 50, content: '评论总数统计', color: '#FDE68A' },
+      // Labels
+      { id: 'label-epic', type: 'text', x: -80, y: 70, width: 60, height: 30, content: 'Epics', color: '#64748B' },
+      { id: 'label-story', type: 'text', x: -80, y: 160, width: 60, height: 30, content: 'Stories', color: '#64748B' },
+    ]
+  },
+
+  d5UserFlow: {
+    elements: [
+      // 8-step video review flow
+      { id: 'start', type: 'circle', x: 50, y: 200, width: 80, height: 80, content: 'Alex\\nOpens', color: '#0f172a' },
+      { id: 'a1', type: 'arrow', x: 130, y: 240, width: 50, height: 0, content: '', color: '#94a3b8' },
+      { id: 'create', type: 'rect', x: 180, y: 210, width: 100, height: 60, content: 'Create\\nreview', color: '#0f172a' },
+      { id: 'a2', type: 'arrow', x: 280, y: 240, width: 50, height: 0, content: 'Create', color: '#94a3b8' },
+      { id: 'room', type: 'rect', x: 330, y: 210, width: 100, height: 60, content: 'Review\\nroom', color: '#0f172a' },
+      { id: 'a3', type: 'arrow', x: 430, y: 240, width: 50, height: 0, content: 'Play', color: '#94a3b8' },
+      { id: 'comment', type: 'rect', x: 480, y: 210, width: 100, height: 60, content: 'Add\\ncomment', color: '#0f172a' },
+      { id: 'a4', type: 'arrow', x: 580, y: 240, width: 50, height: 0, content: 'Click', color: '#94a3b8' },
+      { id: 'jump', type: 'rect', x: 630, y: 210, width: 100, height: 60, content: 'Jump to\\ntime', color: '#0f172a' },
+      { id: 'a5', type: 'arrow', x: 730, y: 240, width: 50, height: 0, content: 'Finish', color: '#94a3b8' },
+      { id: 'summary', type: 'circle', x: 780, y: 200, width: 80, height: 80, content: 'Summary', color: '#10b981' },
+      // Future expansion placeholder
+      { id: 'future-label', type: 'text', x: 480, y: 320, width: 260, height: 30, content: '(Future: Reviewer name, Resolve status)', color: '#94a3b8' },
+    ]
+  },
+
+  d5PrdDiscovery: {
+    content: `# PRD: ReviewSession Module
+
+## Overview
+负责保存这一次审片会话的基本信息。
+
+## User Stories
+- 作为创作者，我可以输入项目名和视频链接，创建一个新的审片会话。
+
+## Functional Requirements
+### 会话创建
+- 字段：projectTitle (string), videoUrl (string)
+- 行为：点击「Create review room」后，生成一个临时 review ID
+- 生成后自动跳转到 Review room
+
+### 数据结构
+\`\`\`typescript
+ReviewSession {
+  id: string
+  projectTitle: string
+  videoUrl: string
+  createdAt: ISOString
+}
+\`\`\`
+
+## Future Enhancements
+- 历史会话列表
+- 会话编辑/删除
+`
+  },
+
+  d5PrdDetail: {
+    content: `# PRD: VideoPlayer + TimecodedComments Module
+
+## Overview
+提供视频播放能力和时间轴评论功能。
+
+## User Stories
+- 在播放视频时，我可以在当前时间点添加评论，并在右侧列表中看到它们。
+- 点击已有评论，可以跳转到对应时间。
+
+## Functional Requirements
+### VideoPlayer
+- 提供 currentTime、seekTo(time) 能力
+- 支持播放/暂停/时间拖动（可先用浏览器原生 video）
+- 显示当前播放时间
+
+### TimecodedComments
+- 添加评论：基于 currentTime 创建 comment
+- 评论数据结构：{ id, timestamp, text, createdAt }
+- 展示评论列表：按 timestamp 升序展示
+- 点击评论 → 调用 VideoPlayer.seekTo(timestamp)
+
+### 交互
+- 点击「Add」时记录 (timestamp, text)
+- 评论列表实时更新
+- 点击评论跳转到对应时间
+
+## Data Structure
+\`\`\`typescript
+Comment {
+  id: string
+  sessionId: string
+  timestamp: number  // 秒
+  text: string
+  createdAt: ISOString
+}
+\`\`\`
+`
+  },
+
+  d5PrdRegistration: {
+    content: `# PRD: ReviewSummary Module
+
+## Overview
+读取该会话所有 comments，展示汇总视图。
+
+## User Stories
+- 我可以在一个 summary 视图里看到所有评论的时间点和内容。
+- 看到本次 cut 的评论总数。
+
+## Functional Requirements
+### Summary 页面
+- 显示：「N comments on this cut」
+- 列表：每行显示 [timestamp] + comment text
+- 按 timestamp 升序排列
+- 可点击评论（未来跳转到对应时间）
+
+### 操作按钮
+- 「Back to review room」→ 返回 Review room
+- 「Copy share link」→ 复制当前 URL
+
+## Future Enhancements
+- 评论状态（已处理/未处理）
+- 评论筛选和排序
+- 导出评论列表
+`
+  },
+
+  // === D9: Build Task Spec (Define L9) ===
+  d9BuildSpec: {
+    content: `# D9: Build Task Spec（3屏视频审片 MVP Build）
+
+## Scope（这轮 Build 只做什么）
+1. 前端实现三页：Create review / Review room / Summary（按 S5）
+2. 评论数据存放在浏览器内存或 localStorage，不做真正后端
+3. 支持：
+   - 创建一个会话
+   - 在 Review room 添加时间点评论
+   - 点击评论跳转时间
+   - 在 Summary 查看所有评论和总数
+4. 不做：
+   - 多会话列表
+   - 用户登录
+   - 真正的分享权限控制
+
+## Screens & Routes
+- \`/new\` → Create review (Screen A)
+- \`/review/:sessionId\` → Review room (Screen B)
+- \`/review/:sessionId/summary\` → Summary (Screen C)
+
+## Data Model（前端层面）
+\`\`\`typescript
+ReviewSession {
+  id: string
+  projectTitle: string
+  videoUrl: string
+  createdAt: ISOString
+}
+
+Comment {
+  id: string
+  sessionId: string
+  timestamp: number  // 秒
+  text: string
+  createdAt: ISOString
+}
+\`\`\`
+
+## Behavior Rules
+1. 创建会话：
+   - 填完表单 → 生成 sessionId → 存入 localStorage → 跳转到 /review/:sessionId
+2. 添加评论：
+   - 从 video player 拿 currentTime（四舍五入到秒）
+   - 创建 Comment → 存入 localStorage → 刷新右侧列表
+3. 点击评论：
+   - 调用 seekTo(timestamp)，播放头跳到对应秒
+4. Summary 页：
+   - 读取该 session 的所有 comment
+   - 统计数量，显示「N comments on this cut」
+
+## 非目标（本轮 Build 明确不做）
+- 评论编辑/删除
+- 评论状态（已处理/未处理）
+- 评论作者（reviewer name）
+- 后端存储
+
+## 验收标准
+1. 在本地 demo 中：从 /new → /review/:id → /review/:id/summary 可以顺利走完
+2. 至少添加 3 条评论，Summary 能正确显示时间点和总数
+3. 点击任一评论，视频能跳到对应时间点
+4. 全程不需要登录 / 注册，也不会出现死路或报错页面
+`
+  },
+
+  // === Legacy data (keeping for backward compatibility) ===
   storyMap: {
     elements: [
       // Epic 1: User Discovery
@@ -1084,7 +1562,7 @@ const App = () => {
         id: userMsgId,
         type: 'user',
         role: 'user',
-        content: "I want to build a community event app like Luma.",
+        content: "我想制作一个应用，brief 是这个：Video collaboration platform built by creatives, for how creatives actually work. Designed and developed solo (no investors, no team).",
         timestamp: Date.now()
       }]);
       setIsProcessing(true);
@@ -1092,29 +1570,17 @@ const App = () => {
       // Wait a bit...
       await new Promise(r => setTimeout(r, 1000));
 
-      // 2. Phase 1: 流式输出交付物计划介绍（不包含 Screen）
-      const deliverablesPlan = `## 交付物计划
-
-在开始设计之前，让我介绍一下我们将生成的交付物：
-
-1. **Product Charter** - 项目章程，定义产品愿景和目标
-2. **User Persona** - 用户画像，明确目标用户特征和需求
-3. **User Story Map** - 用户故事地图，梳理功能范围和优先级
-4. **User Flow** - 用户流程图，展示核心交互路径
-5. **PRD Documents** - 产品需求文档，详细说明每个功能模块
-
-这些文档将帮助我们确保产品设计的完整性和一致性。
-
-接下来，我需要问您几个问题来更好地理解需求...`;
+      // 2. Phase 1: 流式输出握手澄清（问题通过组件显示，这里只输出引导语和建议）
+      const deliverablesPlan = `收到你的需求！这是一个视频协作平台，在开始之前，我想先确认几件事，确保我理解正确：`;
 
       await addStreamingAIMessage(deliverablesPlan);
       setIsProcessing(false);
 
-      // 3. Phase 2: 显示问题容器（包含所有问题，一次性加载）
+      // 3. Phase 2: 显示 Step 0 握手问题（澄清 Problem/User/Scope）
       await new Promise(r => setTimeout(r, 800));
       const firstQuestion = {
-        ...PRODUCT_QUESTIONS[0],
-        allQuestions: PRODUCT_QUESTIONS, // 传递所有问题
+        ...HANDSHAKE_QUESTIONS[0],
+        allQuestions: HANDSHAKE_QUESTIONS, // 传递所有握手问题
         currentIndex: 0
       };
       setMessages(prev => [...prev, {
@@ -1188,24 +1654,62 @@ const App = () => {
       msg.id === 'question-container' ? { ...msg, collapsed: true } : msg
     ));
 
-    // 添加 AI 确认消息和执行计划
+    // 1. 显示思考消息
     await new Promise(r => setTimeout(r, 500));
+    const thinkingId = `thinking-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: thinkingId,
+      type: 'thinking',
+      content: '',
+      timestamp: Date.now(),
+      thinking: { content: '', status: 'thinking' }
+    }]);
+    
+    await new Promise(r => setTimeout(r, 800));
+    setMessages(prev => prev.map(msg => 
+      msg.id === thinkingId ? {
+        ...msg,
+        thinking: { 
+          content: '根据握手问答，确认：解决远程视频审片问题、目标用户是独立创作者、本轮做极小闭环 MVP (3 屏)', 
+          status: 'done' 
+        }
+      } : msg
+    ));
 
+    // 2. 显示"好的，我确认了..."消息
+    await new Promise(r => setTimeout(r, 300));
+    await addStreamingAIMessage(`好的，我确认了：
+
+- **问题**：远程视频审片的反馈混乱问题，大家各种用微信、邮件、Drive 评论，信息很散
+- **用户**：自由职业视频创作者 / 小型工作室，先不管大公司多用户权限那种
+- **范围**：做一个「**分享视频 → 收集时间轴评论 → 自己看汇总**」的闭环，不做团队管理、项目空间这些复杂的
+
+接下来我会生成：
+
+1. **Product Charter** - 把你的需求写成一份任务说明
+2. **Persona** - 目标用户是谁
+3. **✅ User Story** - 用户要完成什么任务（需要你确认）
+4. **✅ User Flow** - 操作路径是怎样的（需要你确认）
+5. **✅ PRD** - 每个模块的功能说明（需要你确认）
+6. **Prototype** - 可以点击的原型`);
+
+    // 3. 显示 TODO 组件 + Start 按钮
+    await new Promise(r => setTimeout(r, 500));
     const planMsgId = 'ai-plan';
     const initialSteps: PlanStep[] = [
-      { id: 's1', label: 'Product Charter & Persona', status: 'pending' },
-      { id: 's2', label: 'User Story Map', status: 'pending' },           // 需确认 - 范围确认
-      { id: 's3', label: 'User Flow', status: 'pending' },                // 需确认 - 范围确认
-      { id: 's4', label: 'Feature PRD - Core Module', status: 'pending' }, // 需确认
-      { id: 's5', label: 'Feature PRD - User Module', status: 'pending' }, // 需确认
-      { id: 's6', label: 'Prototype Design', status: 'pending' },         // 最后执行
+      { id: 'charter', label: 'Product Charter', status: 'pending' },
+      { id: 'persona', label: 'Persona', status: 'pending' },
+      { id: 'user-story', label: '✅ User Story（需确认）', status: 'pending' },
+      { id: 'user-flow', label: '✅ User Flow（需确认）', status: 'pending' },
+      { id: 'prd', label: '✅ PRD（需确认）', status: 'pending' },
+      { id: 'prototype', label: 'Prototype', status: 'pending' }
     ];
 
     setMessages(prev => [...prev, {
       id: planMsgId,
       type: 'ai',
       role: 'ai',
-      content: "明白了！根据您的需求，这是我的执行计划：",
+      content: "点击下方按钮开始生成：",
       timestamp: Date.now(),
       plan: initialSteps,
       executionStarted: false
@@ -1477,54 +1981,75 @@ const App = () => {
   };
 
   // 执行工作流（新版：渐进式确认 + 流式输出）
+  // ========== Define-Centric Workflow Engine ==========
+  // Step 0 → D1 → S1 → D5 → S5 → D9 → Build
   const executeWorkflow = async (planMsgId: string) => {
     const cx = LAYOUT_CENTER_X;
     const cy = LAYOUT_CENTER_Y;
 
     // 开始 Agent 运行
     setAgentIsRunning(true);
-    setIsObservationMode(true); // Auto-enable observation mode
+    setIsObservationMode(true);
 
     // ============================================
-    // PHASE 1: Product Charter & Persona (无需确认)
+    // 开始生成产物
     // ============================================
     await new Promise(r => setTimeout(r, 600));
-    updatePlanStatus(planMsgId, 's1', 'loading');
-    setCurrentTaskName('Product Charter & Persona');
     
-    // Read todo list first
-    await simulateToolCall('todo_read', '', 300);
+    await addStreamingAIMessage(`我先来写 Product Charter 和 Persona...`);
     
-    // Show thinking process
-    const thinkingId1 = addThinkingMessage();
-    await new Promise(r => setTimeout(r, 800));
-    updateThinkingMessage(thinkingId1, '分析需求：社区活动应用，类似 Luma。核心功能：活动创建、RSVP 管理、日历同步、社交发现。', 'done');
-
-    await addStreamingAIMessage("正在建立项目基础，创建项目章程和用户画像...");
-    await new Promise(r => setTimeout(r, 500));
-
-    // List project structure
-    await simulateToolCall('list_dir', 'src/', 250);
-    await simulateToolCall('grep', 'event management SaaS', 350);
+    // 开始生成 Product Charter
+    updatePlanStatus(planMsgId, 'charter', 'loading');
+    setCurrentTaskName('Product Charter');
+    
     await simulateToolCall('read', 'docs/charter-template.md', 300);
 
-    // Create Document Nodes for Project Setup
-    const docY = cy + DOCUMENT_SECTION_Y_OFFSET;
-    await new Promise(r => setTimeout(r, 600));
+    // Define 区域布局
+    const defineY = cy + DOCUMENT_SECTION_Y_OFFSET;
     
     // 创建 Project Charter
-    const charterNode: CanvasNode = { id: 'node-charter', type: NodeType.DOCUMENT, x: cx - NODE_SPACING_X / 2, y: docY, title: 'Project Charter', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    const charterNode: CanvasNode = { 
+      id: 'node-charter', 
+      type: NodeType.DOCUMENT, 
+      x: cx - NODE_SPACING_X / 2, 
+      y: defineY, 
+      title: 'Product Charter', 
+      status: 'loading', 
+      data: null, 
+      sectionId: SECTION_IDS.DEFINE 
+    };
     setNodes(prev => [...prev, charterNode]);
     markNodeAsJustCreated('node-charter');
     focusOnNode('node-charter', charterNode.x, charterNode.y, 450, 550);
-    const charterOpId = addFileOperationMessage('create', 'document', 'Project Charter', 'node-charter');
+    const charterOpId = addFileOperationMessage('create', 'document', 'Product Charter', 'node-charter');
     await new Promise(r => setTimeout(r, 800));
     updateFileOperationStatus(charterOpId, 'success');
     setNodes(prev => prev.map(n => n.id === 'node-charter' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.projectCharter } : n));
+    updatePlanStatus(planMsgId, 'charter', 'done');
+
+    await addStreamingAIMessage(`Product Charter 已生成。
+
+这份文档明确了：
+- **Problem**：远程审片反馈散落在各个渠道
+- **Goal**：做一个超轻量视频审片链接
+- **Scope**：创建房间 → 时间轴评论 → 汇总
+
+你可以点击左侧的文档查看详情。`);
 
     // 创建 Persona
     await new Promise(r => setTimeout(r, 300));
-    const personaNode: CanvasNode = { id: 'node-persona', type: NodeType.DOCUMENT, x: cx + NODE_SPACING_X / 2, y: docY, title: 'User Persona', status: 'loading', data: null, sectionId: SECTION_IDS.DOCUMENT };
+    updatePlanStatus(planMsgId, 'persona', 'loading');
+    setCurrentTaskName('Persona');
+    const personaNode: CanvasNode = { 
+      id: 'node-persona', 
+      type: NodeType.DOCUMENT, 
+      x: cx + NODE_SPACING_X / 2, 
+      y: defineY, 
+      title: 'User Persona', 
+      status: 'loading', 
+      data: null, 
+      sectionId: SECTION_IDS.DEFINE 
+    };
     setNodes(prev => [...prev, personaNode]);
     markNodeAsJustCreated('node-persona');
     focusOnNode('node-persona', personaNode.x, personaNode.y, 450, 550);
@@ -1534,372 +2059,587 @@ const App = () => {
     setNodes(prev => prev.map(n => n.id === 'node-persona' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.persona } : n));
     setOperatingNode(null);
 
-    await addStreamingAIMessage("项目基础已就绪。接下来开始梳理用户故事...");
-    updatePlanStatus(planMsgId, 's1', 'done');
+    updatePlanStatus(planMsgId, 'persona', 'done');
+
+    await addStreamingAIMessage(`Persona 已生成。
+
+目标用户是 **Alex**：
+- 独立视频创作者 / 小型工作室主理人
+- 想发一个链接给客户，让对方边看边按时间点反馈
+- 然后自己能在一个视图里看到所有反馈
+
+接下来我会生成 User Story，需要你确认做什么、不做什么。`);
 
     // ============================================
-    // PHASE 2: User Story Map (需确认 - 范围确认)
+    // User Story (需确认)
     // ============================================
     await new Promise(r => setTimeout(r, 800));
-    updatePlanStatus(planMsgId, 's2', 'loading');
-    setCurrentTaskName('User Story Map');
+    updatePlanStatus(planMsgId, 'user-story', 'loading');
+    setCurrentTaskName('User Story');
 
-    // 流式输出重要性说明
-    await addStreamingAIMessage(`## 重要：范围确认
+    // D1 布局：在 Charter 下方，分两行排列避免遮挡
+    // 第一行：User Story (左) + User Flow (右)
+    // 第二行：PRD x3
+    const d1X = cx;
+    const d1Y = defineY + 700;
+    const d1Row2Y = d1Y + 750; // 第二行位置，为 User Flow (高700) 留出空间
 
-接下来的 **User Story Map** 定义了产品的功能范围，这是非常关键的确认点。
+    await simulateToolCall('grep', 'user story template', 300);
 
-请仔细查看生成的用户故事，确认它们符合您的预期后再继续。`);
-    await new Promise(r => setTimeout(r, 400));
-
-    await simulateToolCall('list_dir', 'templates/', 250);
-    await simulateToolCall('grep', 'user story patterns', 300);
-    await simulateToolCall('read', 'templates/story-map.json', 350);
-
-    await addStreamingAIMessage("正在创建 Story Map，梳理 Epics 和 User Stories...");
-    await new Promise(r => setTimeout(r, 400));
-
-    // Define 阶段布局: Story Map 在左上角
-    const storyMapX = cx - 1500;
-    const storyMapY = cy - 800;
-
-    await new Promise(r => setTimeout(r, 600));
-    const storyMapNode: CanvasNode = {
-        id: 'node-story-map', type: NodeType.WHITEBOARD, x: storyMapX, y: storyMapY, title: 'User Story Map', status: 'loading', data: null, sectionId: SECTION_IDS.CHART, confirmationStatus: 'pending'
+    // 创建 User Story 文档 (第一行左侧)
+    const userStoryNode: CanvasNode = { 
+      id: 'node-user-story', 
+      type: NodeType.DOCUMENT, 
+      x: d1X - 550, // 左移，与 User Flow 保持间距
+      y: d1Y, 
+      title: 'User Story', 
+      status: 'loading', 
+      data: null, 
+      sectionId: SECTION_IDS.DEFINE
     };
-    setNodes(prev => [...prev, storyMapNode]);
-    markNodeAsJustCreated('node-story-map');
-
-    focusOnNode('node-story-map', storyMapX, storyMapY, 850, 700);
-    const storyMapOpId = addFileOperationMessage('create', 'whiteboard', 'User Story Map', 'node-story-map');
-    await new Promise(r => setTimeout(r, 1200));
-    updateFileOperationStatus(storyMapOpId, 'success');
-    setNodes(prev => prev.map(n => n.id === 'node-story-map' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.storyMap } : n));
+    setNodes(prev => [...prev, userStoryNode]);
+    markNodeAsJustCreated('node-user-story');
+    focusOnNode('node-user-story', userStoryNode.x, userStoryNode.y, 450, 550);
+    const userStoryOpId = addFileOperationMessage('create', 'document', 'User Story', 'node-user-story');
+    await new Promise(r => setTimeout(r, 1000));
+    updateFileOperationStatus(userStoryOpId, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-user-story' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.d1MvpCardPlan } : n));
     setOperatingNode(null);
 
-    // 等待 User Story Map 确认
-    updatePlanStatus(planMsgId, 's2', 'waiting_confirmation');
-    await addStreamingAIMessage("User Story Map 已生成。请确认用户故事是否符合您的预期，这将决定产品的功能范围。");
-    
-    const storyMapConfirmId = addConfirmationMessage(
-      'node-story-map',
-      NodeType.WHITEBOARD,
-      'User Story Map 确认',
-      '包含 3 个 Epics 和 6 个 User Stories。这些故事将决定后续 PRD 和原型的范围，请仔细确认。'
+    await addStreamingAIMessage(`User Story 已生成。
+
+这轮我们先做最核心的部分：
+
+- **创建审片房间** → Alex 输入项目名和视频链接
+- **时间点评论** → 在播放器里添加带时间戳的评论
+- **评论汇总** → 查看所有评论的汇总列表
+
+不做项目列表，不做多文件上传，不做复杂权限。
+
+你可以点击左侧文档查看详细内容。`);
+
+    // User Story 确认
+    const userStoryConfirmId = addConfirmationMessage(
+      'node-user-story',
+      NodeType.DOCUMENT,
+      'User Story 确认',
+      'User Story 确认后，我会继续生成 User Flow。'
     );
     
-    const storyMapConfirmed = await waitForConfirmation(storyMapConfirmId);
-    if (storyMapConfirmed) {
-      setNodes(prev => prev.map(n => n.id === 'node-story-map' ? { ...n, confirmationStatus: 'confirmed' } : n));
+    const userStoryConfirmed = await waitForConfirmation(userStoryConfirmId);
+    if (userStoryConfirmed) {
+      await addStreamingAIMessage(`✅ **User Story 锁定** → 继续生成 User Flow 和 PRD。`);
     }
-    updatePlanStatus(planMsgId, 's2', 'done');
+    updatePlanStatus(planMsgId, 'user-story', 'done');
 
     // ============================================
-    // PHASE 3: User Flow (需确认 - 范围确认)
+    // User Flow
     // ============================================
-    await new Promise(r => setTimeout(r, 800));
-    updatePlanStatus(planMsgId, 's3', 'loading');
+    await new Promise(r => setTimeout(r, 500));
+    updatePlanStatus(planMsgId, 'user-flow', 'loading');
     setCurrentTaskName('User Flow');
 
-    await addStreamingAIMessage("根据确认的 Story Map 设计用户流程图...");
-    await new Promise(r => setTimeout(r, 400));
-
-    await simulateToolCall('grep', 'navigation patterns', 300);
-    await simulateToolCall('read', 'templates/flow-diagram.json', 350);
-
-    await addStreamingAIMessage("正在生成页面转换流程图...");
-    await new Promise(r => setTimeout(r, 400));
-
-    // Define 阶段布局: User Flow 在 Story Map 下方
-    const chartX = cx - 1500;
-    const chartY = cy + 500;
-
-    await new Promise(r => setTimeout(r, 600));
-    const chartNode: CanvasNode = {
-        id: 'node-user-flow', type: NodeType.WHITEBOARD, x: chartX, y: chartY, title: 'User Flow', status: 'loading', data: null, sectionId: SECTION_IDS.CHART, confirmationStatus: 'pending'
+    // 创建 User Flow (第一行右侧，与 User Story 保持间距)
+    // User Story 宽度 450px，在 x = d1X - 550，右边界在 d1X - 100
+    // User Flow 从 d1X + 50 开始，保证 150px 间距
+    const userFlowNode: CanvasNode = {
+      id: 'node-user-flow',
+      type: NodeType.WHITEBOARD,
+      x: d1X + 50,
+      y: d1Y,
+      title: 'User Flow (3屏)',
+      status: 'loading',
+      data: null,
+      sectionId: SECTION_IDS.DEFINE
     };
-    setNodes(prev => [...prev, chartNode]);
+    setNodes(prev => [...prev, userFlowNode]);
     markNodeAsJustCreated('node-user-flow');
-
-    focusOnNode('node-user-flow', chartX, chartY, 850, 700);
-    const wbOpId = addFileOperationMessage('create', 'whiteboard', 'User Flow', 'node-user-flow');
-    await new Promise(r => setTimeout(r, 1200));
-    updateFileOperationStatus(wbOpId, 'success');
-    setNodes(prev => prev.map(n => n.id === 'node-user-flow' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.userFlow } : n));
+    focusOnNode('node-user-flow', userFlowNode.x, userFlowNode.y, 850, 400);
+    const userFlowOpId = addFileOperationMessage('create', 'whiteboard', 'User Flow', 'node-user-flow');
+    await new Promise(r => setTimeout(r, 800));
+    updateFileOperationStatus(userFlowOpId, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-user-flow' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.d1UserFlow } : n));
     setOperatingNode(null);
 
-    // 等待 User Flow 确认
-    updatePlanStatus(planMsgId, 's3', 'waiting_confirmation');
-    await addStreamingAIMessage("User Flow 已生成。请确认用户流程是否符合您的预期，这将影响原型设计的页面结构。");
-    
+    await addStreamingAIMessage(`User Flow 已生成。
+
+这是一条 3 屏的操作路径：
+
+1. **Create review** → Alex 输入项目名和视频链接，创建审片房间
+2. **Review room** → 播放视频，在时间点添加评论
+3. **Summary** → 查看所有评论汇总
+
+你可以点击左侧的白板查看详细流程图。`);
+
+    // User Flow 确认
     const userFlowConfirmId = addConfirmationMessage(
       'node-user-flow',
       NodeType.WHITEBOARD,
       'User Flow 确认',
-      '包含 5 个核心页面的转换流程。确认后将开始生成各功能模块的 PRD 文档。'
+      '这是 3 屏的操作路径：Create review → Review room → Summary。确认后将继续生成 PRD。'
     );
     
     const userFlowConfirmed = await waitForConfirmation(userFlowConfirmId);
     if (userFlowConfirmed) {
-      setNodes(prev => prev.map(n => n.id === 'node-user-flow' ? { ...n, confirmationStatus: 'confirmed' } : n));
+      await addStreamingAIMessage(`✅ **User Flow 锁定** → 继续生成 PRD。`);
     }
-    updatePlanStatus(planMsgId, 's3', 'done');
+    updatePlanStatus(planMsgId, 'user-flow', 'done');
 
     // ============================================
-    // PHASE 4: Feature PRD - Core Module (需确认)
+    // PRD (3 个独立文档)
     // ============================================
-    await new Promise(r => setTimeout(r, 800));
-    updatePlanStatus(planMsgId, 's4', 'loading');
-    setCurrentTaskName('Feature PRD - Core Module');
+    await new Promise(r => setTimeout(r, 500));
+    updatePlanStatus(planMsgId, 'prd', 'loading');
+    setCurrentTaskName('PRD');
 
-    await addStreamingAIMessage(`## 核心功能模块 PRD
-
-接下来我将为核心功能模块生成详细的 PRD 文档，包括：
-- **Home** - 首页模块
-- **Explore** - 探索模块  
-- **Event Detail** - 活动详情模块
-
-每个模块的 PRD 将详细说明功能需求、交互逻辑和验收标准。`);
-    await new Promise(r => setTimeout(r, 400));
-
-    await simulateToolCall('read', 'templates/prd-template.md', 300);
-    await simulateToolCall('grep', 'feature specification', 350);
-
-    // Define 阶段布局: PRD 在 User Flow 下方，横向排列
-    const prdBaseX = cx - 1200;
-    const prdBaseY = cy + 1400;
-
-    // Core Module PRDs
-    const corePrdConfigs = [
-      { id: 'node-prd-home', x: prdBaseX, y: prdBaseY, title: 'PRD: Home', data: MOCK_LUMA_DATA.prdHome },
-      { id: 'node-prd-explore', x: prdBaseX + NODE_SPACING_X, y: prdBaseY, title: 'PRD: Explore', data: MOCK_LUMA_DATA.prdExplore },
-      { id: 'node-prd-detail', x: prdBaseX + NODE_SPACING_X * 2, y: prdBaseY, title: 'PRD: Detail', data: MOCK_LUMA_DATA.prdDetail },
+    // 创建 3 个 PRD 文档 (第二行，水平均匀分布)
+    // 每个 Document 宽度 450px，间距 100px
+    // 总宽度 = 450 * 3 + 100 * 2 = 1550px，居中起始 x = d1X - 775
+    const prdConfigs = [
+      { id: 'node-prd-create', x: d1X - 775, y: d1Row2Y, title: 'PRD: Create Review', data: MOCK_LUMA_DATA.d5PrdDiscovery },
+      { id: 'node-prd-room', x: d1X - 225, y: d1Row2Y, title: 'PRD: Review Room', data: MOCK_LUMA_DATA.d5PrdDetail },
+      { id: 'node-prd-summary', x: d1X + 325, y: d1Row2Y, title: 'PRD: Summary', data: MOCK_LUMA_DATA.d5PrdRegistration },
     ];
 
-    for (const prd of corePrdConfigs) {
-      await addStreamingAIMessage(`正在创建 ${prd.title}...`);
+    for (const prd of prdConfigs) {
       await new Promise(r => setTimeout(r, 300));
-
-      const newNode: CanvasNode = {
+      const prdNode: CanvasNode = {
         id: prd.id,
         type: NodeType.DOCUMENT,
         x: prd.x,
         y: prd.y,
         title: prd.title,
         status: 'loading',
-        sectionId: SECTION_IDS.DOCUMENT,
         data: null,
-        confirmationStatus: 'pending'
+        sectionId: SECTION_IDS.DEFINE
       };
-      setNodes(prev => [...prev, newNode]);
+      setNodes(prev => [...prev, prdNode]);
       markNodeAsJustCreated(prd.id);
-      
       focusOnNode(prd.id, prd.x, prd.y, 450, 550);
-      const opId = addFileOperationMessage('create', 'document', prd.title, prd.id);
-      await new Promise(r => setTimeout(r, 600));
-      updateFileOperationStatus(opId, 'success');
-      
+      const prdOpId = addFileOperationMessage('create', 'document', prd.title, prd.id);
+      await new Promise(r => setTimeout(r, 500));
+      updateFileOperationStatus(prdOpId, 'success');
       setNodes(prev => prev.map(n => n.id === prd.id ? { ...n, status: 'done', data: prd.data } : n));
-      setOperatingNode(null);
-      await new Promise(r => setTimeout(r, 200));
     }
+    setOperatingNode(null);
 
-    // 等待核心模块 PRD 确认
-    updatePlanStatus(planMsgId, 's4', 'waiting_confirmation');
-    await addStreamingAIMessage("核心模块 PRD 已生成。请确认这些功能需求是否符合预期。");
-    
-    const corePrdConfirmId = addConfirmationMessage(
-      'node-prd-home',
-      NodeType.DOCUMENT,
-      '核心模块 PRD 确认',
-      '包含 Home、Explore、Detail 三个核心页面的功能需求文档。确认后将继续生成用户模块 PRD。'
-    );
-    
-    const corePrdConfirmed = await waitForConfirmation(corePrdConfirmId);
-    if (corePrdConfirmed) {
-      setNodes(prev => prev.map(n => 
-        corePrdConfigs.some(p => p.id === n.id) ? { ...n, confirmationStatus: 'confirmed' } : n
-      ));
-    }
-    updatePlanStatus(planMsgId, 's4', 'done');
+    await addStreamingAIMessage(`PRD 已生成，共 3 个文档：
 
-    // ============================================
-    // PHASE 5: Feature PRD - User Module (需确认)
-    // ============================================
-    await new Promise(r => setTimeout(r, 800));
-    updatePlanStatus(planMsgId, 's5', 'loading');
-    setCurrentTaskName('Feature PRD - User Module');
+---
 
-    await addStreamingAIMessage(`## 用户功能模块 PRD
+**PRD: Create Review**
+- 输入：项目名称、视频链接（URL）
+- 逻辑：校验链接有效性 → 创建 ReviewSession → 生成房间 ID
+- 输出：跳转到 Review Room 页面
 
-接下来生成用户相关功能模块的 PRD 文档：
-- **Create Event** - 创建活动模块
-- **Profile** - 用户中心模块`);
-    await new Promise(r => setTimeout(r, 400));
+---
 
-    // User Module PRDs
-    const userPrdConfigs = [
-      { id: 'node-prd-create', x: prdBaseX + NODE_SPACING_X * 0.5, y: prdBaseY + 600, title: 'PRD: Create', data: MOCK_LUMA_DATA.prdCreate },
-      { id: 'node-prd-profile', x: prdBaseX + NODE_SPACING_X * 1.5, y: prdBaseY + 600, title: 'PRD: Profile', data: MOCK_LUMA_DATA.prdProfile },
-    ];
+**PRD: Review Room**
+- 播放器：支持播放/暂停、拖动进度条
+- 评论：点击「添加评论」按钮，自动捕获当前时间点，输入评论内容
+- 评论列表：右侧显示所有评论，点击可跳转到对应时间
 
-    for (const prd of userPrdConfigs) {
-      await addStreamingAIMessage(`正在创建 ${prd.title}...`);
-      await new Promise(r => setTimeout(r, 300));
+---
 
-      const newNode: CanvasNode = {
-        id: prd.id,
-        type: NodeType.DOCUMENT,
-        x: prd.x,
-        y: prd.y,
-        title: prd.title,
-        status: 'loading',
-        sectionId: SECTION_IDS.DOCUMENT,
-        data: null,
-        confirmationStatus: 'pending'
-      };
-      setNodes(prev => [...prev, newNode]);
-      markNodeAsJustCreated(prd.id);
-      
-      focusOnNode(prd.id, prd.x, prd.y, 450, 550);
-      const opId = addFileOperationMessage('create', 'document', prd.title, prd.id);
-      await new Promise(r => setTimeout(r, 600));
-      updateFileOperationStatus(opId, 'success');
-      
-      setNodes(prev => prev.map(n => n.id === prd.id ? { ...n, status: 'done', data: prd.data } : n));
-      setOperatingNode(null);
-      await new Promise(r => setTimeout(r, 200));
-    }
+**PRD: Summary**
+- 读取该 Session 的所有评论
+- 按时间顺序展示：时间点 + 评论内容
+- 显示评论总数
 
-    // 等待用户模块 PRD 确认
-    updatePlanStatus(planMsgId, 's5', 'waiting_confirmation');
-    await addStreamingAIMessage("用户模块 PRD 已生成。请确认这些功能需求后，我们将开始设计原型。");
-    
-    const userPrdConfirmId = addConfirmationMessage(
+---
+
+你可以点击左侧的文档查看详细内容。`);
+
+    // PRD 确认
+    const prdConfirmId = addConfirmationMessage(
       'node-prd-create',
       NodeType.DOCUMENT,
-      '用户模块 PRD 确认',
-      '包含 Create Event、Profile 两个用户相关页面的功能需求文档。确认后将开始生成原型设计。'
+      'PRD 确认',
+      'PRD 确认后，我会开始生成 Prototype。'
     );
     
-    const userPrdConfirmed = await waitForConfirmation(userPrdConfirmId);
-    if (userPrdConfirmed) {
-      setNodes(prev => prev.map(n => 
-        userPrdConfigs.some(p => p.id === n.id) ? { ...n, confirmationStatus: 'confirmed' } : n
-      ));
+    const prdConfirmed = await waitForConfirmation(prdConfirmId);
+    if (prdConfirmed) {
+      await addStreamingAIMessage(`✅ **PRD 锁定** → 开始生成 Prototype。`);
     }
-    updatePlanStatus(planMsgId, 's5', 'done');
+    updatePlanStatus(planMsgId, 'prd', 'done');
 
     // ============================================
-    // PHASE 6: Prototype Design (最后执行)
+    // Prototype: 可以点击的原型 (3 屏 MVP)
     // ============================================
     await new Promise(r => setTimeout(r, 800));
-    updatePlanStatus(planMsgId, 's6', 'loading');
-    setCurrentTaskName('Prototype Design');
+    updatePlanStatus(planMsgId, 'prototype', 'loading');
+    setCurrentTaskName('Prototype');
 
-    await addStreamingAIMessage(`## 原型设计
+    await addStreamingAIMessage(`## Step 2: Design L1 = Fast Prototype
 
-所有 PRD 已确认，现在开始根据确认的功能需求生成高保真原型界面...`);
+基于 Define L1，我来快速生成 **极简 3 屏原型**：
+
+1. **Screen A: Create review**
+   - 顶部文案：Start a new video review
+   - 输入框：Project title、Video URL
+   - 按钮：Create review room
+
+2. **Screen B: Review room**
+   - 左侧：video player
+   - 右侧：Comments panel + 评论列表
+   - 底部：Add comment at [当前时间] + Finish reviewing 按钮
+
+3. **Screen C: Summary**
+   - 标题：Review summary for "Project title"
+   - 列表：[时间戳] 评论内容
+   - 按钮：Back to review room、Copy share link`);
     await new Promise(r => setTimeout(r, 400));
 
-    await simulateToolCall('list_dir', 'design-system/', 250);
     await simulateToolCall('read', 'design-system/colors.css', 300);
-    await simulateToolCall('grep', 'navigation component', 350);
 
-    // Create Skeleton Screens - 每个屏幕单独创建并跟随
-    await new Promise(r => setTimeout(r, 600));
-    const sY1 = cy;
-    const sY2 = cy + WEB_NODE_SPACING_Y;
-    const sXStart = cx - WEB_NODE_SPACING_X;
+    // S1 Prototype 布局：在 D1 第二行 (PRD) 下方
+    // D1 第二行在 d1Row2Y = defineY + 1450，PRD 高度约 550px，底部约在 defineY + 2000
+    // S1 从 d1Row2Y + 700 开始，确保有足够间距
+    const s1Y = d1Row2Y + 700;
+    // Screen 宽度 1000px，使用 1100px 间距确保不重叠（100px padding）
+    const screenSpacing = 1100;
+    const s1XStart = cx - screenSpacing; // 居中：3 屏总宽度 = 1000*3 + 100*2 = 3200，起始 x = cx - 1100
 
-    // 定义所有屏幕节点的配置
-    const screenConfigs = [
-        { id: 'node-screen-1', x: sXStart, y: sY1, title: 'Home', data: MOCK_LUMA_DATA.screen1 },
-        { id: 'node-screen-2', x: sXStart + WEB_NODE_SPACING_X, y: sY1, title: 'Explore', data: MOCK_LUMA_DATA.screen2 },
-        { id: 'node-screen-3', x: sXStart + (WEB_NODE_SPACING_X * 2), y: sY1, title: 'Event Detail', data: MOCK_LUMA_DATA.screen3 },
-        { id: 'node-screen-4', x: cx - (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Create Event', data: MOCK_LUMA_DATA.screen4 },
-        { id: 'node-screen-5', x: cx + (WEB_NODE_SPACING_X * 0.5), y: sY2, title: 'Profile', data: MOCK_LUMA_DATA.screen5 },
+    // 定义 3 屏 MVP
+    const s1ScreenConfigs = [
+      { id: 'node-s1-a', x: s1XStart, y: s1Y, title: 'A: Create review', data: MOCK_LUMA_DATA.s1ScreenA },
+      { id: 'node-s1-b', x: s1XStart + screenSpacing, y: s1Y, title: 'B: Review room', data: MOCK_LUMA_DATA.s1ScreenB },
+      { id: 'node-s1-c', x: s1XStart + screenSpacing * 2, y: s1Y, title: 'C: Summary', data: MOCK_LUMA_DATA.s1ScreenC },
     ];
 
-    // Render Edges first
-    const flowEdges: CanvasEdge[] = [
-      { id: 'e1', fromNode: 'node-screen-1', toNode: 'node-screen-2' },
-      { id: 'e2', fromNode: 'node-screen-2', toNode: 'node-screen-3' },
-      { id: 'e3', fromNode: 'node-screen-1', toNode: 'node-screen-4' },
-      { id: 'e4', fromNode: 'node-screen-1', toNode: 'node-screen-5' },
+    // 创建导航 Edges
+    const s1Edges: CanvasEdge[] = [
+      { id: 's1-e1', fromNode: 'node-s1-a', toNode: 'node-s1-b', label: 'Create room' },
+      { id: 's1-e2', fromNode: 'node-s1-b', toNode: 'node-s1-c', label: 'Finish' },
     ];
-    setEdges(flowEdges);
+    setEdges(s1Edges);
 
-    await addStreamingAIMessage("正在构建 Home 和 Explore 页面...");
+    // 创建每个屏幕
+    for (const screen of s1ScreenConfigs) {
+      await addStreamingAIMessage(`正在创建 ${screen.title}...`);
+      await new Promise(r => setTimeout(r, 300));
+
+      const screenNode: CanvasNode = {
+        id: screen.id,
+        type: NodeType.SCREEN,
+        x: screen.x,
+        y: screen.y,
+        title: screen.title,
+        status: 'loading',
+        data: null,
+        sectionId: SECTION_IDS.PROTOTYPE
+      };
+      setNodes(prev => [...prev, screenNode]);
+      markNodeAsJustCreated(screen.id);
+      
+      focusOnNode(screen.id, screen.x, screen.y, 1000, 780);
+      const opId = addFileOperationMessage('create', 'screen', screen.title, screen.id);
+      await new Promise(r => setTimeout(r, 800));
+      updateFileOperationStatus(opId, 'success');
+      setNodes(prev => prev.map(n => n.id === screen.id ? { ...n, status: 'done', data: screen.data } : n));
+      setOperatingNode(null);
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    await addStreamingAIMessage(`这个 3 屏 MVP 闭环很清楚。
+
+您可以点击任意屏幕预览交互流程。
+
+---
+
+**目前的这些内容是否符合预期？有没有需要添加或者修改的内容？**
+
+如果没有，我会扩充其他的 User Story，来增添更多功能。`);
+    updatePlanStatus(planMsgId, 'prototype', 'done');
+
+    // ============================================
+    // S1 完成后暂停，等待用户确认
+    // ============================================
+    const s1ConfirmId = addConfirmationMessage(
+      'node-s1-a',
+      NodeType.SCREEN,
+      'S1 原型确认',
+      '确认后将继续 D5 结构化设计，或可提出修改意见。'
+    );
+
+    const s1Confirmed = await waitForConfirmation(s1ConfirmId);
+    if (!s1Confirmed) {
+      // 用户需要修改，暂停工作流
+      setAgentIsRunning(false);
+      return;
+    }
+
+    // ============================================
+    // D5: Define L5 - Structured Plan (后续循环)
+    // ============================================
+    await new Promise(r => setTimeout(r, 800));
+    setCurrentTaskName('Define L5: Structured Plan');
+
+    await addStreamingAIMessage(`✅ **S1 原型已确认** → 继续 D5 结构化设计。
+
+## 继续：Define L5 = 结构化 Plan
+
+我已经把刚才那条 3 屏闭环抽成了结构化 Plan：
+
+- **Story Map 三块**：创建会话 / 时间轴评论 / 汇总
+- **Flow 写清楚 8 步**
+- **模块拆成** ReviewSession / VideoPlayer / TimecodedComments / ReviewSummary
+
+这一版会作为接下来结构化原型（Design L5）的 Plan。
+
+你觉得有哪块 Story 或模块是必须加的？
+
+比如：
+- 本轮一定要有 reviewer 名字？
+- 一定要能标记 "已处理" 吗？`);
     await new Promise(r => setTimeout(r, 400));
 
-    // 创建每个屏幕节点并逐个聚焦
-    const createAndRevealScreen = async (config: typeof screenConfigs[0]) => {
-        // 创建 loading 状态的节点
-        const screenNode: CanvasNode = {
-            id: config.id,
-            type: NodeType.SCREEN,
-            x: config.x,
-            y: config.y,
-            title: config.title,
-            status: 'loading',
-            data: null,
-            sectionId: SECTION_IDS.SCREEN,
-            variant: 'web'
-        };
-        setNodes(prev => [...prev, screenNode]);
-        markNodeAsJustCreated(config.id);
-        
-        // 聚焦到新创建的屏幕节点
-        focusOnNode(config.id, config.x, config.y, 1000, 780); // Web Screen: 1000 x 780
-        const fileOpId = addFileOperationMessage('create', 'screen', config.title, config.id);
-        await new Promise(r => setTimeout(r, 1000));
-        updateFileOperationStatus(fileOpId, 'success');
-        await new Promise(r => setTimeout(r, 200));
-        setNodes(prev => prev.map(n => n.id === config.id ? { ...n, status: 'done', data: config.data } : n));
-        setOperatingNode(null);
-        await new Promise(r => setTimeout(r, 300));
+    await simulateToolCall('grep', 'story map template', 300);
+    await simulateToolCall('read', 'templates/prd-template.md', 350);
+
+    // D5 布局：在 S1 下方，避免遮挡
+    // S1 在 s1Y = cy + 500，加上 Screen 高度约 800px，底部约在 cy + 1300
+    // D5 从 s1Y + 900 开始，确保有足够间距
+    const d5Y = s1Y + 900;
+    const d5XStart = cx - 800;
+
+    // 创建 D5 Story Map
+    const d5StoryMapNode: CanvasNode = { 
+      id: 'node-d5-storymap', 
+      type: NodeType.WHITEBOARD, 
+      x: d5XStart, 
+      y: d5Y, 
+      title: 'D5: Story Map', 
+      status: 'loading', 
+      data: null, 
+      sectionId: SECTION_IDS.DEFINE
     };
+    setNodes(prev => [...prev, d5StoryMapNode]);
+    markNodeAsJustCreated('node-d5-storymap');
+    focusOnNode('node-d5-storymap', d5StoryMapNode.x, d5StoryMapNode.y, 850, 350);
+    const d5StoryMapOpId = addFileOperationMessage('create', 'whiteboard', 'D5: Story Map', 'node-d5-storymap');
+    await new Promise(r => setTimeout(r, 1000));
+    updateFileOperationStatus(d5StoryMapOpId, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-d5-storymap' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.d5StoryMap } : n));
 
-    await createAndRevealScreen(screenConfigs[0]); // Home
-    await createAndRevealScreen(screenConfigs[1]); // Explore
+    // 创建 D5 PRDs
+    const d5PrdConfigs = [
+      { id: 'node-d5-prd-discovery', x: d5XStart + 900, y: d5Y, title: 'PRD: ReviewSession', data: MOCK_LUMA_DATA.d5PrdDiscovery },
+      { id: 'node-d5-prd-detail', x: d5XStart + 900 + NODE_SPACING_X * 0.8, y: d5Y, title: 'PRD: VideoPlayer', data: MOCK_LUMA_DATA.d5PrdDetail },
+      { id: 'node-d5-prd-registration', x: d5XStart + 900 + NODE_SPACING_X * 1.6, y: d5Y, title: 'PRD: Summary', data: MOCK_LUMA_DATA.d5PrdRegistration },
+    ];
 
-    await simulateToolCall('read', 'templates/form-patterns.tsx', 300);
+    for (const prd of d5PrdConfigs) {
+      await new Promise(r => setTimeout(r, 200));
+      const prdNode: CanvasNode = {
+        id: prd.id,
+        type: NodeType.DOCUMENT,
+        x: prd.x,
+        y: prd.y,
+        title: prd.title,
+        status: 'loading',
+        sectionId: SECTION_IDS.DEFINE,
+        data: null
+      };
+      setNodes(prev => [...prev, prdNode]);
+      markNodeAsJustCreated(prd.id);
+      focusOnNode(prd.id, prd.x, prd.y, 450, 550);
+      const opId = addFileOperationMessage('create', 'document', prd.title, prd.id);
+      await new Promise(r => setTimeout(r, 600));
+      updateFileOperationStatus(opId, 'success');
+      setNodes(prev => prev.map(n => n.id === prd.id ? { ...n, status: 'done', data: prd.data } : n));
+    }
+    setOperatingNode(null);
 
-    await addStreamingAIMessage("正在创建 Event Detail、表单页面和用户中心...");
+    // D5 确认
+    const d5ConfirmId = addConfirmationMessage(
+      'node-d5-storymap',
+      NodeType.WHITEBOARD,
+      'D5 结构化计划确认',
+      '包含 Story Map（3 个 Epics）和模块拆分。确认后将升级 Prototype 为结构化版本。'
+    );
+
+    const d5Confirmed = await waitForConfirmation(d5ConfirmId);
+    if (d5Confirmed) {
+      await addStreamingAIMessage(`✅ **Define L5 锁定** → 进入 S5。`);
+    }
+
+    // ============================================
+    // S5: Design L5 - Structured Prototype
+    // ============================================
+    await new Promise(r => setTimeout(r, 800));
+    setCurrentTaskName('Design L5: Structured Prototype');
+
+    await addStreamingAIMessage(`## S5: Design L5 = Structured Prototype
+
+基于 Define L5 的结构化 Plan，我来升级原型：
+
+- 评论列表每条加上**未来可扩展区域**（可以打勾表示"已处理"）
+- 点击评论时，播放器**跳转到对应 timestamp**
+- **预留** reviewer name 和 resolve 状态的位置`);
+    await new Promise(r => setTimeout(r, 500));
+
+    // S5: 添加一个说明文档，放在 S1 Screen B 下方
+    // S1 高度约 800px，S5 Note 放在 S1 底部 + 100px 间距
+    const s5NoteNode: CanvasNode = {
+      id: 'node-s5-note',
+      type: NodeType.DOCUMENT,
+      x: s1XStart + screenSpacing, // 与 Screen B 对齐
+      y: s1Y + 900,
+      title: 'S5: Prototype Notes',
+      status: 'loading',
+      data: null,
+      sectionId: SECTION_IDS.PROTOTYPE
+    };
+    setNodes(prev => [...prev, s5NoteNode]);
+    markNodeAsJustCreated('node-s5-note');
+    focusOnNode('node-s5-note', s5NoteNode.x, s5NoteNode.y, 450, 300);
+    const s5NoteOpId = addFileOperationMessage('create', 'document', 'S5: Prototype Notes', 'node-s5-note');
+    await new Promise(r => setTimeout(r, 600));
+    updateFileOperationStatus(s5NoteOpId, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-s5-note' ? { 
+      ...n, 
+      status: 'done', 
+      data: { content: `# S5: Structured Prototype Notes
+
+## 当前状态
+S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
+
+## 预留扩展
+- **Create review 页**: 预留「历史会话列表」的占位区域
+- **Review room 页**: 每条评论预留「已处理」复选框位置
+- **Summary 页**: 预留筛选/排序和导出功能入口
+
+## 未来迭代
+- Reviewer name（评论者名字）
+- Resolve status（已处理状态）
+- 真正的分享权限控制
+
+## 下一步
+确认 D9 Build Spec 后开始构建。
+` } 
+    } : n));
+    setOperatingNode(null);
+
+    await addStreamingAIMessage(`我已经能想象后续要怎么加 reviewer、状态、筛选了，这版原型 OK。
+
+下一步我希望能看到一个**真的能跑的 Review room**，哪怕只是前端 + mock。
+
+接下来进入 **Define L9 = Build Task Spec**。`);
+
+    // ============================================
+    // D9: Define L9 - Build Task Spec
+    // ============================================
+    await new Promise(r => setTimeout(r, 800));
+    setCurrentTaskName('Define L9: Build Task Spec');
+
+    await addStreamingAIMessage(`## D9: Define L9 = Build Task Spec
+
+这份 Define L9 是专门为 Build 准备的任务说明：
+
+- 只做 **3 页**
+- 只做**本地存储**
+- 只做**时间轴评论 + 跳转 + 汇总**
+
+不会做登录、后台、团队管理，也不会做 reviewer 名字。
+
+确认用这个 Plan 来驱动本轮 Build 吗？`);
     await new Promise(r => setTimeout(r, 400));
 
-    await createAndRevealScreen(screenConfigs[2]); // Event Detail
-    await createAndRevealScreen(screenConfigs[3]); // Create Event
-    await createAndRevealScreen(screenConfigs[4]); // Profile
+    await simulateToolCall('read', 'templates/build-spec.md', 300);
 
-    await addStreamingAIMessage("所有原型界面已生成完成，包含完整的页面导航流程。");
-    updatePlanStatus(planMsgId, 's6', 'done');
+    // D9 布局
+    const d9X = cx;
+    const d9Y = d5Y + 700;
+
+    const d9SpecNode: CanvasNode = { 
+      id: 'node-d9-spec', 
+      type: NodeType.DOCUMENT, 
+      x: d9X, 
+      y: d9Y, 
+      title: 'D9: Build Task Spec', 
+      status: 'loading', 
+      data: null, 
+      sectionId: SECTION_IDS.BUILD
+    };
+    setNodes(prev => [...prev, d9SpecNode]);
+    markNodeAsJustCreated('node-d9-spec');
+    focusOnNode('node-d9-spec', d9SpecNode.x, d9SpecNode.y, 450, 700);
+    const d9SpecOpId = addFileOperationMessage('create', 'document', 'D9: Build Task Spec', 'node-d9-spec');
+    await new Promise(r => setTimeout(r, 1000));
+    updateFileOperationStatus(d9SpecOpId, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-d9-spec' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.d9BuildSpec } : n));
+    setOperatingNode(null);
+
+    // D9 确认
+    const d9ConfirmId = addConfirmationMessage(
+      'node-d9-spec',
+      NodeType.DOCUMENT,
+      'D9 Build Task Spec 确认',
+      '这轮 Build 只做 3 屏视频审片 MVP：本地存储、无后端、无登录。确认后开始 Build。'
+    );
+    
+    const d9Confirmed = await waitForConfirmation(d9ConfirmId);
+    if (d9Confirmed) {
+      await addStreamingAIMessage(`✅ **Define L9 锁定** → Build 开工。`);
+    }
+
+    // ============================================
+    // Build: Working App
+    // ============================================
+    await new Promise(r => setTimeout(r, 800));
+    setCurrentTaskName('Build: Working App');
+
+    await addStreamingAIMessage(`## Build = Working App
+
+这就是我想要的「**最小可跑版本**」。
+
+按 D9 规格开始 Build：
+- 3 个页面：Create review / Review room / Summary
+- 用 localStorage 存 ReviewSession + Comment
+- 实现 routes + 基本交互逻辑
+
+在实际开发中，这里会调用代码生成工具。本演示中，我们已经有了可运行的原型！`);
+    await new Promise(r => setTimeout(r, 500));
+
+    await simulateToolCall('grep', 'react component template', 300);
+    await simulateToolCall('read', 'src/components/index.tsx', 350);
 
     // ============================================
     // Final Summary
     // ============================================
     await new Promise(r => setTimeout(r, 600));
-    panTo(cx, cy, 0.25);
+    panTo(cx, cy, 0.2);
 
     // 结束 Agent 运行
     setAgentIsRunning(false);
-    setIsObservationMode(false); // Auto-disable observation mode
+    setIsObservationMode(false);
     setCurrentOperatingNodeId(null);
     setCurrentTaskName('');
 
     setIsProcessing(false);
-    await addStreamingAIMessage(`## 设计完成！
+    await addStreamingAIMessage(`## 🎉 流程完成！
 
-您的产品蓝图已准备就绪：
+我已经帮你完成了完整的产品定义流程：
 
-- **Project Charter & User Persona** - 项目章程和用户画像
-- **User Story Map** - 用户故事地图（3 个 Epics，6 个 Stories）
-- **User Flow** - 用户流程图
-- **5 个 PRD 文档** - 各功能模块的产品需求文档
-- **5 个高保真原型界面** - 可交互的 UI 设计
+**第一个循环**：
+1. ✅ Product Charter - 任务说明
+2. ✅ Persona - 目标用户 Alex
+3. ✅ User Story - 3 屏审片闭环（已确认）
+4. ✅ User Flow - 操作路径
+5. ✅ PRD - 模块功能说明
+6. ✅ Prototype - 可点击原型
 
-您可以点击任意节点进行编辑，或使用工具栏添加更多资源。`);
+**后续循环**：
+7. ✅ D5 - 结构化 Plan（Story Map + PRDs）
+8. ✅ S5 - 结构化 Prototype
+9. ✅ D9 - Build Task Spec
+10. ✅ Build - 可运行的代码
+
+---
+
+你可以点击任意原型屏幕进行预览！`);
   };
 
   // --- Standard Handlers ---

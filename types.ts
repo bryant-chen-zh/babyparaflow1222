@@ -94,7 +94,6 @@ export interface IntegrationData {
 
 export interface CanvasNode extends BaseNode {
   data: DocumentData | WhiteboardData | ScreenData | FlowData | TableData | APIData | IntegrationData | null;
-  variant?: 'web' | 'mobile'; // For ScreenNode
 }
 
 export interface CanvasEdge {
@@ -120,7 +119,7 @@ export interface PlanStep {
 }
 
 // Tool call type enum
-export type ToolType = 'grep' | 'read' | 'bash' | 'edit' | 'write' | 'glob' | 'list_dir' | 'todo_read' | 'todo_write';
+export type ToolType = 'grep' | 'read' | 'bash' | 'edit' | 'write' | 'glob';
 
 // Tool call message data
 export interface ToolCallData {
@@ -152,16 +151,10 @@ export interface QuestionData {
   currentIndex?: number;
 }
 
-// File operation types
-export type FileOperationType = 'create' | 'write' | 'edit' | 'delete' | 'move';
-export type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration' | 'section';
-
 // File operation message data
 export interface FileOperationData {
-  operation: FileOperationType;
-  target: FileOperationTarget;
-  title: string;           // Display name
-  nodeId?: string;         // Associated node ID (for navigation)
+  operation: 'write' | 'edit';
+  filePath: string;
   status: 'loading' | 'success' | 'error';
 }
 
@@ -180,7 +173,6 @@ export interface ChatMessage {
   role?: 'user' | 'ai'; // For backward compatibility, used by user/ai types
   content: string;
   timestamp: number;
-  images?: string[];           // Base64 encoded images
   plan?: PlanStep[];           // Optional To-Do list for this message
   toolCall?: ToolCallData;     // Tool call data
   question?: QuestionData;     // Question data

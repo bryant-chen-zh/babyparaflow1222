@@ -29,9 +29,15 @@ export const INITIAL_ZOOM = 0.3;
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 3;
 
+// Section IDs for Define-centric workflow
 export const SECTION_IDS = {
+  // Legacy IDs for backward compatibility
   DOCUMENT: 'section-document',
   CHART: 'section-chart',
   SCREEN: 'section-screen',
-  BACKEND: 'section-backend'
+  BACKEND: 'section-backend',
+  // New Define-centric IDs
+  DEFINE: 'section-define',       // Define phase (D1/D5/D9 artifacts)
+  PROTOTYPE: 'section-prototype', // Design phase (S1/S5 screens)
+  BUILD: 'section-build'          // Build phase artifacts
 };

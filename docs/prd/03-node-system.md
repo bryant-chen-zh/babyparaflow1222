@@ -33,36 +33,219 @@ interface DocumentData {
 
 ### 2. Whiteboard 节点
 
-**用途**：绘制流程图和图表  
-**尺寸**：850x700  
+**用途**：绘制流程图、图表和卡片墙  
+**尺寸**：850x700（可根据内容自适应）  
 **图标**：🎨 GitBranch  
 **颜色**：白底，紫色元素
 
 #### 数据结构
 ```typescript
 interface WhiteboardData {
+  variant?: 'flow' | 'storymap';  // 变体类型
   elements: WhiteboardElement[];
 }
 
 interface WhiteboardElement {
   id: string;
-  type: 'rect' | 'circle' | 'diamond' | 'text' | 'arrow';
+  type: 'rect' | 'circle' | 'diamond' | 'text' | 'arrow' | 'card' | 'swimlane';
   x: number;
   y: number;
   width: number;
   height: number;
   content?: string;
   color?: string;
+  // Story Map 专用字段
+  cardType?: 'epic' | 'story' | 'task';
+  parentId?: string;  // 用于层级关系
 }
 ```
+
+#### 变体类型
+
+##### Flow 变体（用户流程图）
+- 用于展示页面跳转与交互逻辑
+- 元素类型：圆形（起点/终点）、矩形（页面）、菱形（决策）、箭头（跳转）
+- 自动布局：从上到下或从左到右
+
+##### Story Map 变体（用户故事地图）
+- 用于展示产品范围的卡片墙
+- 采用 Epic → Story → Task 层级结构
+- 布局规则：
+  - **横向**：Epic 行，表示用户核心目标
+  - **纵向**：Story 列，表示具体用户故事
+  - **子项**：Task 卡片，表示实现任务
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   User Story Map                     │
+├─────────────────────────────────────────────────────┤
+│  ┌─────────┐   ┌─────────┐   ┌─────────┐           │
+│  │ Epic 1  │   │ Epic 2  │   │ Epic 3  │   ← Epic 行│
+│  └────┬────┘   └────┬────┘   └────┬────┘           │
+│       │             │             │                 │
+│  ┌────▼────┐   ┌────▼────┐   ┌────▼────┐           │
+│  │ Story 1 │   │ Story 3 │   │ Story 5 │   ← Story │
+│  ├─────────┤   ├─────────┤   ├─────────┤           │
+│  │ Story 2 │   │ Story 4 │   │         │           │
+│  └─────────┘   └─────────┘   └─────────┘           │
+│       │             │                               │
+│  ┌────▼────┐   ┌────▼────┐                         │
+│  │ Task 1  │   │ Task 2  │                 ← Task  │
+│  └─────────┘   └─────────┘                         │
+└─────────────────────────────────────────────────────┘
+```
+
+#### Story Map 详细数据结构
+
+```typescript
+// Story Map 专用数据结构
+interface StoryMapData extends WhiteboardData {
+  variant: 'storymap';
+  epics: EpicData[];
+}
+
+interface EpicData {
+  id: string;
+  title: string;
+  description?: string;
+  color: string;  // Epic 颜色标识
+  order: number;  // 横向排列顺序
+  stories: StoryData[];
+}
+
+interface StoryData {
+  id: string;
+  title: string;
+  description?: string;
+  priority: 'must' | 'should' | 'could' | 'wont';  // MoSCoW 优先级
+  order: number;  // 纵向排列顺序
+  tasks: TaskData[];
+}
+
+interface TaskData {
+  id: string;
+  title: string;
+  status: 'todo' | 'doing' | 'done';
+  estimate?: string;  // 估算工时
+}
+```
+
+#### Story Map Mock 数据示例
+
+```typescript
+const MOCK_STORY_MAP: StoryMapData = {
+  variant: 'storymap',
+  elements: [], // 由 epics 自动生成渲染元素
+  epics: [
+    {
+      id: 'epic-1',
+      title: 'User Discovery',
+      description: 'Users can discover and explore events',
+      color: '#3B82F6',  // blue
+      order: 0,
+      stories: [
+        {
+          id: 'story-1-1',
+          title: 'Browse Events',
+          description: 'As a user, I want to browse available events',
+          priority: 'must',
+          order: 0,
+          tasks: [
+            { id: 'task-1-1-1', title: 'Event list UI', status: 'todo' },
+            { id: 'task-1-1-2', title: 'Filter & Search', status: 'todo' }
+          ]
+        },
+        {
+          id: 'story-1-2',
+          title: 'View Event Details',
+          description: 'As a user, I want to see event details',
+          priority: 'must',
+          order: 1,
+          tasks: [
+            { id: 'task-1-2-1', title: 'Detail page UI', status: 'todo' }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'epic-2',
+      title: 'Event Participation',
+      description: 'Users can join and manage event participation',
+      color: '#10B981',  // green
+      order: 1,
+      stories: [
+        {
+          id: 'story-2-1',
+          title: 'Register for Event',
+          description: 'As a user, I want to register for an event',
+          priority: 'must',
+          order: 0,
+          tasks: [
+            { id: 'task-2-1-1', title: 'Registration form', status: 'todo' },
+            { id: 'task-2-1-2', title: 'Payment integration', status: 'todo' }
+          ]
+        },
+        {
+          id: 'story-2-2',
+          title: 'Manage Bookings',
+          description: 'As a user, I want to view and cancel my bookings',
+          priority: 'should',
+          order: 1,
+          tasks: []
+        }
+      ]
+    },
+    {
+      id: 'epic-3',
+      title: 'Event Creation',
+      description: 'Organizers can create and manage events',
+      color: '#F59E0B',  // amber
+      order: 2,
+      stories: [
+        {
+          id: 'story-3-1',
+          title: 'Create Event',
+          description: 'As an organizer, I want to create a new event',
+          priority: 'must',
+          order: 0,
+          tasks: [
+            { id: 'task-3-1-1', title: 'Event form UI', status: 'todo' },
+            { id: 'task-3-1-2', title: 'Image upload', status: 'todo' }
+          ]
+        }
+      ]
+    }
+  ]
+};
+```
+
+#### Story Map 渲染规则
+
+1. **布局计算**：
+   - Epic 卡片宽度：200px，间距：40px
+   - Story 卡片宽度：180px，高度：根据内容自适应
+   - Task 卡片宽度：160px，高度：固定 40px
+
+2. **颜色编码**：
+   - Epic 使用自定义颜色作为左边框
+   - Story 优先级颜色：must(红)、should(橙)、could(黄)、wont(灰)
+   - Task 状态颜色：todo(灰)、doing(蓝)、done(绿)
+
+3. **层级连线**：
+   - Epic 到 Story：垂直虚线
+   - Story 到 Task：垂直实线（可折叠）
 
 #### 交互能力
 - SVG 渲染流程图元素
 - "Edit" 按钮打开 WhiteboardModal
-- 支持箭头、形状、文字
+- 支持箭头、形状、文字、卡片
+- Story Map 变体支持卡片拖拽重排
+- **Epic 支持折叠/展开 Story 列表**
+- **Story 支持折叠/展开 Task 列表**
 
 #### 使用场景
-- 用户流程图
+- **User Flow**：页面跳转与交互逻辑
+- **User Story Map**：产品范围与用户故事
 - 系统架构图
 - 流程决策树
 
@@ -171,7 +354,27 @@ type NodeStatus = 'loading' | 'done' | 'error';
 - **done**：正常显示内容
 - **error**：错误状态（待实现）
 
-### 2. 节点定位
+### 2. 确认状态
+```typescript
+type ConfirmationStatus = 'pending' | 'confirmed' | 'revision_requested';
+```
+- **pending**：待确认状态
+  - 节点显示橙色边框（`ring-2 ring-orange-500`）
+  - 边框脉冲动画（`animate-pulse`）
+  - 右上角显示「待确认」徽章
+- **confirmed**：已确认状态
+  - 节点边框变为绿色（`ring-2 ring-green-500`）
+  - 徽章变为「已确认 ✓」
+- **revision_requested**：需要修改
+  - 节点边框变为红色
+  - 显示修改说明
+
+**需要确认的节点类型**：
+- User Story Map（Whiteboard）
+- User Flow（Whiteboard）
+- PRD 文档（Document）
+
+### 3. 节点定位
 ```typescript
 interface BaseNode {
   id: string;
@@ -183,6 +386,7 @@ interface BaseNode {
   title: string;
   status: NodeStatus;
   sectionId?: string;  // 所属 Section ID
+  confirmationStatus?: ConfirmationStatus;  // 确认状态（可选）
 }
 ```
 
@@ -291,6 +495,10 @@ const getSectionBounds = (nodes: CanvasNode[], padding = 120) => {
 - [ ] Section 自动包裹节点，无重叠
 - [ ] 边的颜色和样式符合类型定义
 - [ ] 边的标签文字清晰可读
+- [ ] **Whiteboard 节点支持 Story Map 卡片墙布局**
+- [ ] **待确认节点显示橙色脉冲边框**
+- [ ] **已确认节点显示绿色边框和徽章**
+- [ ] **点击确认徽章可触发确认交互**
 
 ## 未来优化
 
@@ -302,6 +510,7 @@ const getSectionBounds = (nodes: CanvasNode[], padding = 120) => {
 - [ ] 自定义节点类型
 - [ ] 节点折叠/展开
 - [ ] 节点搜索和过滤
+
 
 
 
