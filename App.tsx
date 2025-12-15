@@ -1830,10 +1830,9 @@ const App = () => {
 
   // Add a confirmation message
   const addConfirmationMessage = (
-    targetNodeId: string,
-    targetNodeType: NodeType,
     title: string,
-    summary: string
+    description: string,
+    items: { nodeId: string; nodeType: NodeType; title: string; preview?: string }[]
   ): string => {
     const msgId = `confirmation-${Date.now()}-${Math.random()}`;
     setMessages(prev => [...prev, {
@@ -1842,10 +1841,9 @@ const App = () => {
       content: '',
       timestamp: Date.now(),
       confirmation: {
-        targetNodeId,
-        targetNodeType,
         title,
-        summary,
+        description,
+        items,
         status: 'pending'
       }
     }]);
@@ -1939,6 +1937,19 @@ const App = () => {
     if (node) {
       // 使用 panTo 将节点居中显示
       panTo(node.x, node.y, 0.5);
+    }
+  };
+
+  // 定位并编辑节点的处理函数
+  const handleLocateAndEditNode = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      // 先定位到节点
+      panTo(node.x, node.y, 0.5);
+      // 延迟一点打开编辑器，让用户看到定位动画
+      setTimeout(() => {
+        handleEditNode(nodeId);
+      }, 300);
     }
   };
 
@@ -2120,10 +2131,9 @@ const App = () => {
 
     // User Story 确认
     const userStoryConfirmId = addConfirmationMessage(
-      'node-user-story',
-      NodeType.DOCUMENT,
       'User Story 确认',
-      'User Story 确认后，我会继续生成 User Flow。'
+      'User Story 确认后，我会继续生成 User Flow。',
+      [{ nodeId: 'node-user-story', nodeType: NodeType.DOCUMENT, title: 'User Story' }]
     );
     
     const userStoryConfirmed = await waitForConfirmation(userStoryConfirmId);
@@ -2173,10 +2183,9 @@ const App = () => {
 
     // User Flow 确认
     const userFlowConfirmId = addConfirmationMessage(
-      'node-user-flow',
-      NodeType.WHITEBOARD,
       'User Flow 确认',
-      '这是 3 屏的操作路径：Create review → Review room → Summary。确认后将继续生成 PRD。'
+      '这是 3 屏的操作路径：Create review → Review room → Summary。确认后将继续生成 PRD。',
+      [{ nodeId: 'node-user-flow', nodeType: NodeType.WHITEBOARD, title: 'User Flow' }]
     );
     
     const userFlowConfirmed = await waitForConfirmation(userFlowConfirmId);
@@ -2252,10 +2261,13 @@ const App = () => {
 
     // PRD 确认
     const prdConfirmId = addConfirmationMessage(
-      'node-prd-create',
-      NodeType.DOCUMENT,
       'PRD 确认',
-      'PRD 确认后，我会开始生成 Prototype。'
+      'PRD 确认后，我会开始生成 Prototype。',
+      [
+        { nodeId: 'node-prd-create', nodeType: NodeType.DOCUMENT, title: 'PRD: Create Review' },
+        { nodeId: 'node-prd-room', nodeType: NodeType.DOCUMENT, title: 'PRD: Review Room' },
+        { nodeId: 'node-prd-summary', nodeType: NodeType.DOCUMENT, title: 'PRD: Summary' }
+      ]
     );
     
     const prdConfirmed = await waitForConfirmation(prdConfirmId);
@@ -2357,10 +2369,13 @@ const App = () => {
     // S1 完成后暂停，等待用户确认
     // ============================================
     const s1ConfirmId = addConfirmationMessage(
-      'node-s1-a',
-      NodeType.SCREEN,
       'S1 原型确认',
-      '确认后将继续 D5 结构化设计，或可提出修改意见。'
+      '确认后将继续 D5 结构化设计，或可提出修改意见。',
+      [
+        { nodeId: 'node-s1-a', nodeType: NodeType.SCREEN, title: 'Screen A: Create review' },
+        { nodeId: 'node-s1-b', nodeType: NodeType.SCREEN, title: 'Screen B: Review room' },
+        { nodeId: 'node-s1-c', nodeType: NodeType.SCREEN, title: 'Screen C: Summary' }
+      ]
     );
 
     const s1Confirmed = await waitForConfirmation(s1ConfirmId);
@@ -2454,10 +2469,9 @@ const App = () => {
 
     // D5 确认
     const d5ConfirmId = addConfirmationMessage(
-      'node-d5-storymap',
-      NodeType.WHITEBOARD,
       'D5 结构化计划确认',
-      '包含 Story Map（3 个 Epics）和模块拆分。确认后将升级 Prototype 为结构化版本。'
+      '包含 Story Map（3 个 Epics）和模块拆分。确认后将升级 Prototype 为结构化版本。',
+      [{ nodeId: 'node-d5-storymap', nodeType: NodeType.WHITEBOARD, title: 'Story Map' }]
     );
 
     const d5Confirmed = await waitForConfirmation(d5ConfirmId);
@@ -2574,10 +2588,9 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
 
     // D9 确认
     const d9ConfirmId = addConfirmationMessage(
-      'node-d9-spec',
-      NodeType.DOCUMENT,
       'D9 Build Task Spec 确认',
-      '这轮 Build 只做 3 屏视频审片 MVP：本地存储、无后端、无登录。确认后开始 Build。'
+      '这轮 Build 只做 3 屏视频审片 MVP：本地存储、无后端、无登录。确认后开始 Build。',
+      [{ nodeId: 'node-d9-spec', nodeType: NodeType.DOCUMENT, title: 'Build Task Spec' }]
     );
     
     const d9Confirmed = await waitForConfirmation(d9ConfirmId);
@@ -2878,6 +2891,7 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
         onSkipQuestion={handleSkipQuestion}
         onContinueQuestion={handleContinueQuestion}
         onLocateNode={handleLocateNode}
+        onEditNode={handleLocateAndEditNode}
         currentPlan={currentPlan}
         onConfirm={handleConfirm}
         onRequestRevision={handleRequestRevision}
@@ -2906,6 +2920,7 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
             currentOperatingNodeId={currentOperatingNodeId}
             justCreatedNodeIds={justCreatedNodeIds}
             isObservationMode={isObservationMode}
+            currentTaskName={currentTaskName}
         />
 
         {/* Agent Status Panel - 画布顶部居中 */}

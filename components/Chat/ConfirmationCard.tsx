@@ -1,31 +1,86 @@
 import React, { useState } from 'react';
-import { CheckCircle, AlertCircle, MapPin, Edit3, X, CheckCircle2 } from 'lucide-react';
-import { ConfirmationData, NodeType } from '../../types';
+import { CheckCircle2, AlertCircle, MapPin, Edit3, X, FileText, Layout, Monitor, Table, Zap, Globe, Pencil, ChevronRight, FileEdit, History, Locate } from 'lucide-react';
+import { ConfirmationData, ConfirmationItem, NodeType } from '../../types';
 
 interface ConfirmationCardProps {
   data: ConfirmationData;
   onConfirm: () => void;
   onRequestRevision: (note: string) => void;
-  onLocate: () => void;
+  onLocate: (nodeId: string) => void;
+  onEdit: (nodeId: string) => void;
 }
 
-// Get friendly name for node type
-const getNodeTypeName = (type: NodeType): string => {
+// Get icon component for node type
+const getNodeTypeIcon = (type: NodeType) => {
   switch (type) {
-    case NodeType.DOCUMENT: return 'Document';
-    case NodeType.WHITEBOARD: return 'Whiteboard';
-    case NodeType.SCREEN: return 'Screen';
-    case NodeType.TABLE: return 'Table';
-    case NodeType.INTEGRATION: return 'Integration';
-    default: return 'Node';
+    case NodeType.DOCUMENT: return FileText;
+    case NodeType.WHITEBOARD: return Layout;
+    case NodeType.SCREEN: return Monitor;
+    case NodeType.TABLE: return Table;
+    case NodeType.API: return Zap;
+    case NodeType.INTEGRATION: return Globe;
+    default: return FileText;
   }
+};
+
+// File item row component - Consistent with FileOperationCard (Neutral Colors)
+const FileItemRow: React.FC<{
+  item: ConfirmationItem;
+  onLocate: (nodeId: string) => void;
+  onEdit: (nodeId: string) => void;
+}> = ({ item, onLocate, onEdit }) => {
+  const IconComponent = getNodeTypeIcon(item.nodeType);
+  // Use neutral gray for icon, matching FileOperationCard
+  const iconColor = 'text-moxt-text-2';
+
+  return (
+    <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg px-3 py-2.5 mb-2 hover:border-moxt-brand-7/50 transition-colors group">
+      <div className="flex items-center gap-2.5">
+        {/* Target icon */}
+        <div className={`flex-shrink-0 ${iconColor}`}>
+          <IconComponent className="w-4 h-4" />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="text-12 font-medium text-moxt-text-1 truncate" title={item.title}>
+            {item.title}
+          </div>
+          {item.preview && (
+             <div className="text-[10px] text-moxt-text-4 truncate mt-0.5">
+               {item.preview}
+             </div>
+          )}
+        </div>
+
+        {/* Edit button - Neutral Gray */}
+        <button
+          onClick={() => onEdit(item.nodeId)}
+          className="flex-shrink-0 p-1 hover:bg-moxt-fill-1 rounded transition-colors text-moxt-text-3 hover:text-moxt-text-2"
+          title="Edit"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Locate button - Neutral Gray */}
+        <button
+          onClick={() => onLocate(item.nodeId)}
+          className="flex-shrink-0 p-1 hover:bg-moxt-fill-1 rounded transition-colors text-moxt-text-3 hover:text-moxt-text-2"
+          title="Locate on canvas"
+        >
+          <Locate className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   data,
   onConfirm,
   onRequestRevision,
-  onLocate
+  onLocate,
+  onEdit
 }) => {
   const [showRevisionInput, setShowRevisionInput] = useState(false);
   const [revisionNote, setRevisionNote] = useState('');
@@ -49,129 +104,134 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     }
   };
 
-  // Revision requested state
-  if (data.status === 'revision_requested') {
-    return (
-      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg mb-4 overflow-hidden border-l-4 border-l-red-500">
-        <div className="p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
-            <span className="text-13 font-semibold text-moxt-text-1">{data.title}</span>
-            <span className="text-11 px-1.5 py-0.5 rounded bg-red-100 text-red-700 ml-auto font-medium">Revision Requested</span>
-          </div>
-          <p className="text-12 text-moxt-text-2 mb-2 leading-normal">{data.summary}</p>
-          {data.revisionNote && (
-            <div className="p-2 bg-red-50 rounded border border-red-100 text-12 text-red-700">
-              <strong>Note:</strong> {data.revisionNote}
+  // --- Render Helpers based on Status ---
+
+  const getHeaderStyles = () => {
+    switch (data.status) {
+      case 'confirmed':
+        return {
+          container: 'bg-green-50/30 border-b border-green-100/50',
+          icon: <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />,
+          badge: <span className="text-11 px-1.5 py-0.5 rounded bg-green-50 text-green-700 ml-auto font-medium">Confirmed</span>
+        };
+      case 'revision_requested':
+        return {
+          container: 'bg-gray-50/50 border-b border-moxt-line-1',
+          icon: <History size={16} className="text-moxt-text-3 flex-shrink-0" />,
+          badge: <span className="text-11 px-1.5 py-0.5 rounded bg-gray-100 text-moxt-text-2 ml-auto font-medium">Asked for Changes</span>
+        };
+      default: // pending
+        return {
+          container: 'border-b border-moxt-line-1/50',
+          icon: (
+            <div className="w-4 h-4 rounded-full border border-moxt-brand-7 flex items-center justify-center flex-shrink-0">
+              <div className="w-1.5 h-1.5 rounded-full bg-moxt-brand-7 animate-pulse" />
             </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+          ),
+          badge: null // No badge for pending as it's the default state
+        };
+    }
+  };
 
-  // Confirmed state
-  if (data.status === 'confirmed') {
-    return (
-      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg mb-4 overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-moxt-fill-1/30">
-          <CheckCircle2 size={16} className="text-moxt-brand-7 flex-shrink-0" />
-          <span className="text-13 font-medium text-moxt-text-1">{data.title}</span>
-          <span className="text-11 px-1.5 py-0.5 rounded bg-green-100 text-green-700 ml-auto font-medium">Confirmed</span>
-        </div>
-        <div className="px-3 py-2 border-t border-moxt-line-1/50">
-          <p className="text-12 text-moxt-text-2 leading-normal">{data.summary}</p>
-        </div>
-      </div>
-    );
-  }
+  const headerStyles = getHeaderStyles();
 
-  // Pending state (awaiting confirmation)
   return (
     <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg mb-4 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-moxt-line-1 bg-moxt-fill-1/30">
-        <div className="w-4 h-4 rounded-full border border-moxt-brand-7 flex items-center justify-center flex-shrink-0">
-          <div className="w-1.5 h-1.5 rounded-full bg-moxt-brand-7 animate-pulse" />
-        </div>
+      <div className={`flex items-center gap-2 px-3 py-2.5 ${headerStyles.container}`}>
+        {headerStyles.icon}
         <span className="text-13 font-semibold text-moxt-text-1">{data.title}</span>
-        <span className="text-11 px-1.5 py-0.5 rounded bg-moxt-fill-2 text-moxt-text-2 ml-auto font-medium">Wait for confirmation</span>
+        {headerStyles.badge}
       </div>
 
       {/* Content */}
-      <div className="p-3 space-y-3">
-        <p className="text-12 text-moxt-text-2 leading-normal">{data.summary}</p>
+      <div className="px-3 py-3 pb-0">
+        {/* Description */}
+        <p className="text-12 text-moxt-text-2 leading-normal mb-3">{data.description}</p>
 
-        {/* Locate Button */}
-        <div>
-           <button
-            onClick={onLocate}
-            className="inline-flex items-center gap-1.5 px-2 py-1 text-11 font-medium text-moxt-text-2 bg-moxt-fill-1 hover:bg-moxt-fill-2 rounded transition-colors border border-moxt-line-1"
-          >
-            <MapPin size={11} />
-            Locate {getNodeTypeName(data.targetNodeType)}
-          </button>
-        </div>
-
-        {/* Revision Input (conditionally shown) */}
-        {showRevisionInput && (
-          <div className="space-y-2 pt-2 border-t border-moxt-line-1 border-dashed animate-in fade-in duration-200">
-            <div className="flex items-center justify-between">
-              <label className="text-12 font-medium text-moxt-text-1">What needs to be changed?</label>
-              <button 
-                onClick={() => { setShowRevisionInput(false); setRevisionNote(''); }}
-                className="p-1 hover:bg-moxt-fill-1 rounded text-moxt-text-3 hover:text-moxt-text-1 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <textarea
-              value={revisionNote}
-              onChange={(e) => setRevisionNote(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Describe the changes you need..."
-              className="w-full px-3 py-2 text-12 bg-white border border-moxt-line-1 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-moxt-brand-7/20 focus:border-moxt-brand-7 transition-all placeholder:text-moxt-text-4"
-              rows={3}
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => { setShowRevisionInput(false); setRevisionNote(''); }}
-                className="px-3 py-1.5 text-12 font-medium text-moxt-text-2 hover:bg-moxt-fill-1 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRevisionSubmit}
-                disabled={!revisionNote.trim()}
-                className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors shadow-sm"
-              >
-                Submit Request
-              </button>
-            </div>
+        {/* File list - Always visible in all states */}
+        {data.items.length > 0 && (
+          <div className="mb-3 max-h-[160px] overflow-y-auto custom-scrollbar">
+            {data.items.map((item) => (
+              <FileItemRow key={item.nodeId} item={item} onLocate={onLocate} onEdit={onEdit} />
+            ))}
           </div>
         )}
 
-        {/* Main Action Buttons */}
-        {!showRevisionInput && (
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={onConfirm}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-green-600 rounded-md transition-colors shadow-sm"
-            >
-              <CheckCircle2 size={14} />
-              Confirm & Continue
-            </button>
-            <button
-              onClick={() => setShowRevisionInput(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 text-12 font-medium text-moxt-text-2 bg-white border border-moxt-line-1 hover:bg-moxt-fill-1 hover:text-moxt-text-1 rounded-md transition-colors shadow-sm"
-            >
-              <Edit3 size={14} />
-              Request Changes
-            </button>
+        {/* Revision Note - Only for Revision Requested */}
+        {data.status === 'revision_requested' && data.revisionNote && (
+          <div className="p-2.5 mb-3 bg-gray-50 rounded-md border border-moxt-line-1 text-12 text-moxt-text-1 animate-in fade-in">
+            <div className="flex items-center gap-1.5 mb-1 text-moxt-text-2 font-medium text-11">
+              <Edit3 size={11} />
+              Your Changes
+            </div>
+            {data.revisionNote}
           </div>
         )}
       </div>
+
+      {/* Footer / Action Area */}
+      
+      {/* 1. Revision Input (Interactive Mode) */}
+      {showRevisionInput ? (
+        <div className="p-3 pt-0 border-t border-moxt-line-1 bg-gray-50/50 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between mb-2 pt-2">
+            <label className="text-12 font-medium text-moxt-text-1">What needs to be changed?</label>
+          </div>
+          <textarea
+            value={revisionNote}
+            onChange={(e) => setRevisionNote(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Describe the changes you need..."
+            className="w-full px-3 py-2 text-12 bg-white border border-moxt-line-1 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-moxt-brand-7/20 focus:border-moxt-brand-7 transition-all placeholder:text-moxt-text-4 mb-2"
+            rows={3}
+            autoFocus
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => { setShowRevisionInput(false); setRevisionNote(''); }}
+              className="px-3 py-1.5 text-12 font-medium text-moxt-text-2 hover:bg-moxt-fill-1 rounded-md transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRevisionSubmit}
+              disabled={!revisionNote.trim()}
+              className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors shadow-sm"
+            >
+              Submit
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* 2. Action Bar - Only for Pending State */
+        data.status === 'pending' && (
+          <div className="bg-gray-50 border-t border-moxt-line-1 px-3 py-2 flex items-center justify-between">
+            {/* Left Actions (Secondary) */}
+            <div className="flex items-center">
+              <button
+                onClick={() => setShowRevisionInput(true)}
+                className="text-12 font-medium text-moxt-text-3 hover:text-moxt-text-1 transition-colors px-2 py-1 rounded hover:bg-moxt-fill-1/50"
+              >
+                Ask for Changes
+              </button>
+            </div>
+
+            {/* Right Action (Primary) */}
+            <button
+              onClick={onConfirm}
+              className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-green-600 rounded-md transition-colors shadow-sm"
+            >
+              Approve & Continue
+            </button>
+          </div>
+        )
+      )}
+      
+      {/* Bottom spacing for non-action states to let content breathe */}
+      {data.status !== 'pending' && !showRevisionInput && (
+        <div className="pb-3" />
+      )}
     </div>
   );
 };

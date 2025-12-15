@@ -34,6 +34,7 @@ interface CanvasContainerProps {
   currentOperatingNodeId?: string | null;
   justCreatedNodeIds?: string[];
   isObservationMode?: boolean;
+  currentTaskName?: string;
 }
 
 interface SectionBounds {
@@ -193,7 +194,8 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     onRemoveMention,
     currentOperatingNodeId = null,
     justCreatedNodeIds = [],
-    isObservationMode = false
+    isObservationMode = false,
+    currentTaskName
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -232,6 +234,31 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number, y: number } | null>(null);
 
+  // Track previous operating node to auto-select it when generation completes
+  const prevOperatingNodeIdRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    // When currentOperatingNodeId changes
+    if (currentOperatingNodeId !== prevOperatingNodeIdRef.current) {
+      const prevId = prevOperatingNodeIdRef.current;
+      
+      // Case 1: A node just finished (currentOperatingNodeId became null)
+      // -> Select the previous node
+      if (prevId && !currentOperatingNodeId) {
+        setSelectedNodeIds([prevId]);
+      }
+      
+      // Case 2: A new node started generating (currentOperatingNodeId became a new ID)
+      // -> Clear selection (the new node will have the operating border)
+      if (currentOperatingNodeId) {
+        setSelectedNodeIds([]);
+      }
+      
+      // Update ref
+      prevOperatingNodeIdRef.current = currentOperatingNodeId;
+    }
+  }, [currentOperatingNodeId]);
+
   // Calculate Auto Sections
   const docNodes = useMemo(() => nodes.filter(n => n.sectionId === SECTION_IDS.DOCUMENT), [nodes]);
   const chartNodes = useMemo(() => nodes.filter(n => n.sectionId === SECTION_IDS.CHART), [nodes]);
@@ -252,8 +279,8 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
             const containerW = containerRef.current.clientWidth;
             const containerH = containerRef.current.clientHeight;
 
-            // Target Ratio: Node should take up about 50% of the screen
-            const targetRatio = 0.5;
+            // Target Ratio: Node should take up about 60% of the screen
+            const targetRatio = 0.6;
             
             const scaleByWidth = (containerW * targetRatio) / width;
             const scaleByHeight = (containerH * targetRatio) / height;
@@ -856,20 +883,22 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 if (isDragging) zIndex = 400;
                 if (isOperating) zIndex = 500;
 
+                const showActiveBorder = isOperating;
+
                 return (
                 <div
                     key={node.id}
                     data-id={node.id}
-                    className={`canvas-node absolute shadow-sm rounded-lg bg-moxt-fill-white border border-moxt-line-1
+                    className={`canvas-node absolute shadow-sm rounded-lg bg-moxt-fill-white
+                        ${showActiveBorder ? 'border-2 border-moxt-brand-7 shadow-[0_0_20px_rgba(0,191,75,0.2)]' : 'border border-moxt-line-1'}
                         ${!isDragging && !isJustCreated ? 'transition-all duration-200' : ''}
                         ${node.type === NodeType.SCREEN || isMentioned || isOperating ? 'overflow-visible' : 'overflow-hidden'}
-                        ${isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
-                        ${isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
-                        ${isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
-                        ${isMentioned ? 'ring-2 ring-blue-500' : ''}
+                        ${!showActiveBorder && isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
+                        ${!showActiveBorder && isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
+                        ${!showActiveBorder && isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
+                        ${!showActiveBorder && isMentioned ? 'ring-2 ring-blue-500' : ''}
                         ${isDragging ? 'scale-[1.01] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
-                        ${isOperating ? 'node-operating' : ''}
                         ${isJustCreated ? 'node-just-created' : ''}
                         ${node.confirmationStatus === 'pending' ? 'ring-2 ring-orange-500 animate-pulse' : ''}
                         ${node.confirmationStatus === 'confirmed' ? 'ring-2 ring-green-500' : ''}
@@ -886,6 +915,14 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     onMouseEnter={() => setHoveredNodeId(node.id)}
                     onMouseLeave={() => setHoveredNodeId(null)}
                 >
+                    {/* Observation/Generating Tab */}
+                    {showActiveBorder && (
+                        <div className="absolute -top-[34px] left-[-2px] flex items-center z-50">
+                             <div className="bg-moxt-brand-7 text-white text-xs font-medium px-3 py-1.5 rounded-t-lg shadow-sm whitespace-nowrap flex items-center gap-2">
+                                 Paraflow is working
+                             </div>
+                        </div>
+                    )}
                     {node.type === NodeType.DOCUMENT && (
                         <DocumentNode title={node.title} data={node.data as any} loading={node.status === 'loading'} onEdit={() => onEditNode(node.id)} />
                     )}
