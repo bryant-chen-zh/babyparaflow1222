@@ -34,6 +34,7 @@ interface ChatSidebarProps {
   onSkipQuestion?: (messageId: string) => void;
   onContinueQuestion?: (messageId: string) => void;
   onLocateNode?: (nodeId: string) => void;
+  onEditNode?: (nodeId: string) => void;
   currentPlan?: PlanStep[] | null;
   onNewChat?: () => void;
   onViewHistory?: () => void;
@@ -102,6 +103,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onSkipQuestion,
   onContinueQuestion,
   onLocateNode,
+  onEditNode,
   currentPlan,
   onNewChat,
   onViewHistory,
@@ -560,6 +562,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   // Render a single block with proper styling
   const renderBlock = (block: Block, index: number) => {
     const content = renderTextWithMentions(block.content, block.id);
+    const indentLevel = block.level || 0;
+    const indentStyle = indentLevel > 0 ? { marginLeft: `${indentLevel * 1.5}rem` } : undefined;
     
     switch (block.type) {
       case 'h1':
@@ -600,41 +604,43 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         );
       case 'bullet':
         return (
-          <li key={block.id} className="flex items-start gap-2 ml-1">
-            <span className="text-moxt-text-2 mt-1.5 text-[8px]">●</span>
-            <span className="flex-1">{content}</span>
+          <li key={block.id} className="flex gap-2 ml-1" style={indentStyle}>
+            <span className="w-[6px] h-[22px] flex items-center justify-center flex-shrink-0">
+              <span className="text-moxt-text-2 text-[6px]">●</span>
+            </span>
+            <span className="flex-1 leading-[22px]">{content}</span>
           </li>
         );
       case 'numbered':
         return (
-          <li key={block.id} className="flex items-start gap-2 ml-1">
-            <span className="text-moxt-text-2 font-medium min-w-[1.25rem]">{index + 1}.</span>
-            <span className="flex-1">{content}</span>
+          <li key={block.id} className="flex items-start gap-2 ml-1" style={indentStyle}>
+            <span className="text-moxt-text-2 font-medium min-w-[1.25rem] leading-[22px]">{index + 1}.</span>
+            <span className="flex-1 leading-[22px]">{content}</span>
           </li>
         );
       case 'task':
         return (
-          <li key={block.id} className="flex items-start gap-2 ml-1">
-            <Square size={14} className="text-moxt-text-3 mt-0.5 flex-shrink-0" />
-            <span className="flex-1">{content}</span>
+          <li key={block.id} className="flex items-start gap-2 ml-1" style={indentStyle}>
+            <Square size={14} className="text-moxt-text-3 mt-[4px] flex-shrink-0" />
+            <span className="flex-1 leading-[22px]">{content}</span>
           </li>
         );
       case 'task_done':
         return (
-          <li key={block.id} className="flex items-start gap-2 ml-1">
-            <CheckSquare size={14} className="text-moxt-brand-7 mt-0.5 flex-shrink-0" />
-            <span className="flex-1 line-through text-moxt-text-3">{content}</span>
+          <li key={block.id} className="flex items-start gap-2 ml-1" style={indentStyle}>
+            <CheckSquare size={14} className="text-moxt-brand-7 mt-[4px] flex-shrink-0" />
+            <span className="flex-1 line-through text-moxt-text-3 leading-[22px]">{content}</span>
           </li>
         );
       case 'blockquote':
         return (
-          <blockquote key={block.id} className="border-l-2 border-moxt-line-2 pl-3 py-0.5 my-1 text-moxt-text-3 italic">
+          <blockquote key={block.id} className="border-l-2 border-moxt-line-2 pl-3 py-0.5 my-1 text-moxt-text-3 italic" style={indentStyle}>
             {content}
           </blockquote>
         );
       case 'code_block':
         return (
-          <pre key={block.id} className="bg-moxt-fill-1 border border-moxt-line-1 rounded-md p-3 my-1.5 overflow-x-auto">
+          <pre key={block.id} className="bg-moxt-fill-1 border border-moxt-line-1 rounded-md p-3 my-1.5 overflow-x-auto" style={indentStyle}>
             <code className="text-[12px] font-mono text-moxt-text-1 whitespace-pre">
               {block.content}
             </code>
@@ -646,7 +652,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       default:
         if (!block.content.trim()) return null;
         return (
-          <p key={block.id} className="my-0.5">
+          <p key={block.id} className="my-0.5 leading-[22px]" style={indentStyle}>
             {content}
           </p>
         );
@@ -663,52 +669,50 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     // AI messages: parse and render Markdown
     const blocks = parseMarkdown(content);
     
-    // Group consecutive list items (bullet, numbered, task, task_done) for proper list rendering
+    // Group consecutive list items for proper list rendering
+    // Track numbered indices by level to handle nested lists correctly
     const elements: React.ReactNode[] = [];
     let currentListItems: { block: Block; index: number }[] = [];
-    let currentListType: 'bullet' | 'numbered' | 'task' | null = null;
-    let numberedIndex = 0;
+    let numberedIndices: Record<number, number> = {}; // level -> current index
 
     const isListType = (type: string): type is 'bullet' | 'numbered' | 'task' | 'task_done' => {
       return type === 'bullet' || type === 'numbered' || type === 'task' || type === 'task_done';
     };
 
-    const getListCategory = (type: string): 'bullet' | 'numbered' | 'task' | null => {
-      if (type === 'bullet') return 'bullet';
-      if (type === 'numbered') return 'numbered';
-      if (type === 'task' || type === 'task_done') return 'task';
-      return null;
-    };
-
     const flushList = () => {
       if (currentListItems.length > 0) {
-        const ListTag = currentListType === 'numbered' ? 'ol' : 'ul';
+        // Determine list tag based on first item
+        const firstItem = currentListItems[0].block;
+        const ListTag = firstItem.type === 'numbered' ? 'ol' : 'ul';
         elements.push(
           <ListTag key={`list-${currentListItems[0].block.id}`} className="my-1.5 space-y-0.5">
             {currentListItems.map(({ block, index }) => renderBlock(block, index))}
           </ListTag>
         );
         currentListItems = [];
-        currentListType = null;
       }
     };
 
     blocks.forEach((block, idx) => {
       if (isListType(block.type)) {
-        const listCategory = getListCategory(block.type);
-        if (currentListType && currentListType !== listCategory) {
-          flushList();
-        }
+        const level = block.level || 0;
+        
         if (block.type === 'numbered') {
-          if (currentListType !== 'numbered') numberedIndex = 0;
-          currentListItems.push({ block, index: numberedIndex });
-          numberedIndex++;
+          // Initialize or get the numbered index for this level
+          if (numberedIndices[level] === undefined) {
+            numberedIndices[level] = 0;
+          }
+          currentListItems.push({ block, index: numberedIndices[level] });
+          numberedIndices[level]++;
         } else {
+          // For bullets and tasks, use original idx (not used for display anyway)
           currentListItems.push({ block, index: idx });
         }
-        currentListType = listCategory;
       } else {
+        // Non-list block encountered
         flushList();
+        // Reset numbered indices when we exit list context
+        numberedIndices = {};
         const rendered = renderBlock(block, idx);
         if (rendered) elements.push(rendered);
       }
@@ -1033,21 +1037,18 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             return <ToolCallMessage toolCall={msg.toolCall} />;
           }
 
-          // Question message - only render collapsed questions in message list
-          // Active (non-collapsed) questions are rendered above the input area
+          // Question message - render in message list
           if (msg.type === 'question' && msg.question) {
-            if (!msg.collapsed) {
-              // Skip active questions - they will be shown above input
-              return null;
-            }
             return (
-              <QuestionCard
-                question={msg.question}
-                onSelectOption={(questionId, optionId) => onAnswerQuestion?.(msg.id, questionId, optionId)}
-                onSkip={() => onSkipQuestion?.(msg.id)}
-                onContinue={() => onContinueQuestion?.(msg.id)}
-                collapsed={msg.collapsed}
-              />
+              <div key={msg.id}>
+                <QuestionCard
+                  question={msg.question}
+                  onSelectOption={(questionId, optionId) => onAnswerQuestion?.(msg.id, questionId, optionId)}
+                  onSkip={() => onSkipQuestion?.(msg.id)}
+                  onContinue={() => onContinueQuestion?.(msg.id)}
+                  collapsed={msg.collapsed}
+                />
+              </div>
             );
           }
 
@@ -1074,7 +1075,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 data={msg.confirmation}
                 onConfirm={() => onConfirm?.(msg.id)}
                 onRequestRevision={(note) => onRequestRevision?.(msg.id, note)}
-                onLocate={() => onLocateNode?.(msg.confirmation!.targetNodeId)}
+                onLocate={(nodeId) => onLocateNode?.(nodeId)}
+                onEdit={(nodeId) => onEditNode?.(nodeId)}
               />
             );
           }
@@ -1237,17 +1239,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       </div>
 
       <div className="px-4 py-3 flex flex-col gap-2">
-        {/* Active Question Card - shown above input */}
-        {messages.filter(msg => msg.type === 'question' && msg.question && !msg.collapsed).map(msg => (
-          <QuestionCard
-            question={msg.question!}
-            onSelectOption={(questionId, optionId) => onAnswerQuestion?.(msg.id, questionId, optionId)}
-            onSkip={() => onSkipQuestion?.(msg.id)}
-            onContinue={() => onContinueQuestion?.(msg.id)}
-            collapsed={false}
-          />
-        ))}
-
         {/* 统一容器：FloatingTodoBar + 输入框 */}
         <div className="bg-moxt-fill-white rounded-xl border border-moxt-line-1 overflow-hidden">
           {/* Floating Todo Bar */}

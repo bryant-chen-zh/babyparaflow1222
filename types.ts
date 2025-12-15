@@ -135,6 +135,7 @@ export interface QuestionOption {
   id: string;
   label: string;
   description?: string;
+  isOther?: boolean;
 }
 
 // Question message data (支持单题和多题模式)
@@ -164,8 +165,25 @@ export interface ThinkingData {
   status: 'thinking' | 'done';
 }
 
+// Confirmation item (single file/node)
+export interface ConfirmationItem {
+  nodeId: string;           // 节点 ID
+  nodeType: NodeType;       // 节点类型
+  title: string;            // 文件/节点标题
+  preview?: string;         // 可选：简短预览文本
+}
+
+// Confirmation message data
+export interface ConfirmationData {
+  title: string;                    // 卡片标题，如 "S1 原型确认"
+  description: string;              // 说明文案，告知用户需要确认什么
+  items: ConfirmationItem[];        // 待确认的文件/节点列表
+  status: 'pending' | 'confirmed' | 'revision_requested';
+  revisionNote?: string;            // 用户的修改意见
+}
+
 // Extended message types
-export type MessageType = 'user' | 'ai' | 'tool_call' | 'question' | 'file_operation' | 'thinking';
+export type MessageType = 'user' | 'ai' | 'tool_call' | 'question' | 'file_operation' | 'thinking' | 'confirmation';
 
 export interface ChatMessage {
   id: string;
@@ -178,6 +196,7 @@ export interface ChatMessage {
   question?: QuestionData;     // Question data
   fileOperation?: FileOperationData;  // File operation data
   thinking?: ThinkingData;     // Thinking/reasoning data
+  confirmation?: ConfirmationData;    // Confirmation data
   executionStarted?: boolean;  // Whether "Start Execution" has been clicked
   collapsed?: boolean;         // Whether the question card is collapsed
 }
