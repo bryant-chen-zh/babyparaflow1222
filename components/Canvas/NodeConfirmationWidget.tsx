@@ -51,18 +51,18 @@ export const NodeConfirmationWidget: React.FC<NodeConfirmationWidgetProps> = ({
       onMouseDown={(e) => e.stopPropagation()}
     >
       {showRevisionInput ? (
-        // Input Mode: Larger, cleaner card
-        <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgb(0,0,0,0.2)] border border-moxt-line-1 p-4 min-w-[360px] animate-in fade-in zoom-in-95 duration-200 origin-bottom">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <div className="flex items-center gap-2">
-              <MessageSquarePlus className="w-4 h-4 text-moxt-brand-7" />
-              <span className="text-sm font-semibold text-moxt-text-1">Ask for Changes</span>
+        // Input Mode: Compact card matching chat style
+        <div className="bg-white rounded-2xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] border border-moxt-line-1 p-3 min-w-[300px] animate-in fade-in zoom-in-95 duration-200 origin-bottom">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <MessageSquarePlus className="w-3.5 h-3.5 text-moxt-brand-7" />
+              <span className="text-12 font-semibold text-moxt-text-1">Ask for Changes</span>
             </div>
             <button
               onClick={() => { setShowRevisionInput(false); setRevisionNote(''); }}
-              className="p-1.5 hover:bg-moxt-fill-1 rounded-full transition-colors text-moxt-text-3 hover:text-moxt-text-1"
+              className="p-1 hover:bg-moxt-fill-1 rounded-full transition-colors text-moxt-text-3 hover:text-moxt-text-1"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
           <textarea
@@ -70,51 +70,51 @@ export const NodeConfirmationWidget: React.FC<NodeConfirmationWidgetProps> = ({
             onChange={(e) => setRevisionNote(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Describe what needs to be changed..."
-            className="w-full px-4 py-3 text-sm bg-moxt-fill-1/30 border border-moxt-line-1 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-moxt-brand-7/20 focus:border-moxt-brand-7 transition-all placeholder:text-moxt-text-4 mb-4 shadow-inner"
-            rows={3}
+            className="w-full px-3 py-2 text-12 bg-moxt-fill-1/30 border border-moxt-line-1 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-moxt-brand-7/20 focus:border-moxt-brand-7 transition-all placeholder:text-moxt-text-4 mb-2.5"
+            rows={2}
             autoFocus
           />
-          <div className="flex justify-end gap-2.5">
+          <div className="flex justify-end gap-2">
             <button
               onClick={() => { setShowRevisionInput(false); setRevisionNote(''); }}
-              className="px-4 py-2 text-sm font-medium text-moxt-text-2 hover:bg-moxt-fill-1 rounded-xl transition-colors"
+              className="px-3 py-1.5 text-12 font-medium text-moxt-text-2 hover:bg-moxt-fill-1 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleRevisionSubmit}
               disabled={!revisionNote.trim()}
-              className="px-4 py-2 text-sm font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center gap-2 shadow-sm"
+              className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
             >
-              Submit Feedback
-              <ChevronRight size={14} />
+              Submit
+              <ChevronRight size={12} />
             </button>
           </div>
         </div>
       ) : (
-        // Default Mode: Clean Capsule
-        <div className="flex items-center bg-white rounded-full shadow-[0_12px_40px_rgb(0,0,0,0.15)] border border-moxt-line-1 p-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300 whitespace-nowrap origin-bottom">
+        // Default Mode: Compact Capsule matching chat style
+        <div className="flex items-center bg-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-moxt-line-1 p-1 animate-in fade-in slide-in-from-bottom-2 duration-300 whitespace-nowrap origin-bottom">
           
           {/* Status Indicator */}
-          <div className="flex items-center gap-2.5 pl-3 pr-4">
-            <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+          <div className="flex items-center gap-2 pl-2.5 pr-3">
+            <span className="relative flex h-2 w-2 flex-shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
             </span>
-            <span className="text-sm font-bold text-moxt-text-1">Confirmation Needed</span>
+            <span className="text-12 font-semibold text-moxt-text-1">Confirmation Needed</span>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={() => setShowRevisionInput(true)}
-              className="px-4 py-2.5 text-sm font-medium text-moxt-text-2 hover:text-moxt-text-1 hover:bg-moxt-fill-1 rounded-full transition-all flex items-center gap-2"
+              className="px-3 py-1.5 text-12 font-medium text-moxt-text-2 hover:text-moxt-text-1 hover:bg-moxt-fill-1 rounded-full transition-all"
             >
               Ask for Changes
             </button>
             <button
               onClick={() => onConfirm(msgId)}
-              className="px-5 py-2.5 text-sm font-bold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+              className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 rounded-full transition-all shadow-sm"
             >
               Confirm & Continue
             </button>

@@ -29,7 +29,7 @@ export const WhiteboardNode: React.FC<WhiteboardNodeProps> = ({ title, data, loa
   return (
     <div className="w-full h-full bg-white relative group flex flex-col">
       {/* Prominent Header */}
-      <div className="h-14 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+      <div className="h-14 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0 rounded-t-lg">
          <div className="flex items-center gap-3">
              <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center">
                  <GitBranch size={16} />
@@ -117,7 +117,7 @@ export const WhiteboardNode: React.FC<WhiteboardNodeProps> = ({ title, data, loa
       </div>
       
       {/* Footer */}
-      <div className="h-8 px-4 border-t border-slate-100 flex items-center gap-2 text-[10px] text-slate-400 font-mono bg-white shrink-0">
+      <div className="h-8 px-4 border-t border-slate-100 flex items-center gap-2 text-[10px] text-slate-400 font-mono bg-white shrink-0 rounded-b-lg">
           <GitCommit size={12} />
           <span>SVG RENDERER</span>
           <span className="flex-1"></span>

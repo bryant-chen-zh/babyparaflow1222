@@ -34,7 +34,7 @@ export const APINode: React.FC<APINodeProps> = ({ title, data, loading }) => {
   return (
     <div className="h-full flex flex-col bg-white group relative border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center gap-3">
+      <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center gap-3 rounded-t-lg">
         <div className="w-8 h-8 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center shrink-0">
             <Globe size={16} />
         </div>

@@ -26,7 +26,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ title, data, loading, onEx
         }}
     >
       {/* Header */}
-      <div className="px-4 py-3 bg-amber-50/50 border-b border-amber-100 flex items-center justify-between">
+      <div className="px-4 py-3 bg-amber-50/50 border-b border-amber-100 flex items-center justify-between rounded-t-lg">
         <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-amber-100 text-amber-600 rounded flex items-center justify-center shrink-0">
             <TableIcon size={14} />
@@ -79,7 +79,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ title, data, loading, onEx
       </div>
       
       {/* Footer */}
-      <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400 flex items-center justify-between font-mono">
+      <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400 flex items-center justify-between font-mono rounded-b-lg">
           <span>{data.rows.length} rows</span>
           <span className="text-slate-400">{data.columns.length} cols</span>
       </div>

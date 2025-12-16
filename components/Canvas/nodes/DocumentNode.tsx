@@ -21,7 +21,7 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({ title, data, loading
   return (
     <div className="h-full flex flex-col bg-white group relative">
       {/* Prominent Header */}
-      <div className="h-14 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+      <div className="h-14 px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0 rounded-t-lg">
          <div className="flex items-center gap-3">
              <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
                  <FileText size={16} />
@@ -104,7 +104,7 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({ title, data, loading
       </div>
       
       {/* Footer status */}
-      <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400 flex items-center justify-between font-mono select-none shrink-0">
+      <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400 flex items-center justify-between font-mono select-none shrink-0 rounded-b-lg">
          <span>MARKDOWN</span>
          <span className="opacity-70">{blocks.length} blocks</span>
       </div>

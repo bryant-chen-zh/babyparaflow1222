@@ -1527,6 +1527,21 @@ const App = () => {
   const [justCreatedNodeIds, setJustCreatedNodeIds] = useState<string[]>([]);
   const [currentTaskName, setCurrentTaskName] = useState<string>('');
 
+  // Sync observation mode with agent running state
+  // - Auto-enter observation mode when agent starts
+  // - Force exit observation mode when agent stops (prevent residual state)
+  const prevAgentIsRunningRef = useRef(false);
+  useEffect(() => {
+    if (agentIsRunning && !prevAgentIsRunningRef.current) {
+      // Agent just started → auto enter observation mode
+      setIsObservationMode(true);
+    } else if (!agentIsRunning && prevAgentIsRunningRef.current) {
+      // Agent just stopped → force exit observation mode
+      setIsObservationMode(false);
+    }
+    prevAgentIsRunningRef.current = agentIsRunning;
+  }, [agentIsRunning]);
+
   // Canvas @ Mention State
   const [isCanvasSelectionMode, setIsCanvasSelectionMode] = useState(false);
   const [mentionedNodeIds, setMentionedNodeIds] = useState<string[]>([]);
@@ -3008,6 +3023,7 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
             currentOperatingNodeId={currentOperatingNodeId}
             justCreatedNodeIds={justCreatedNodeIds}
             isObservationMode={isObservationMode}
+            onExitObservationMode={() => setIsObservationMode(false)}
             currentTaskName={currentTaskName}
             pendingConfirmation={pendingConfirmation}
             primaryConfirmationNodeId={primaryConfirmationNodeId}

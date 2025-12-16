@@ -35,6 +35,7 @@ interface CanvasContainerProps {
   currentOperatingNodeId?: string | null;
   justCreatedNodeIds?: string[];
   isObservationMode?: boolean;
+  onExitObservationMode?: () => void;
   currentTaskName?: string;
   // Confirmation synced with Chat
   pendingConfirmation?: PendingConfirmation | null;
@@ -202,6 +203,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     currentOperatingNodeId = null,
     justCreatedNodeIds = [],
     isObservationMode = false,
+    onExitObservationMode,
     currentTaskName,
     pendingConfirmation,
     primaryConfirmationNodeId,
@@ -349,6 +351,10 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
   // --- Zoom Helpers ---
   const zoomIn = () => {
+    // Exit observation mode when user manually zooms
+    if (isObservationMode) {
+      onExitObservationMode?.();
+    }
     const newScale = Math.min(MAX_ZOOM, view.scale + 0.1);
     const container = containerRef.current;
     if (container) {
@@ -365,6 +371,10 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   };
 
   const zoomOut = () => {
+    // Exit observation mode when user manually zooms
+    if (isObservationMode) {
+      onExitObservationMode?.();
+    }
     const newScale = Math.max(MIN_ZOOM, view.scale - 0.1);
     const container = containerRef.current;
     if (container) {
@@ -420,7 +430,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [view, selectedNodeIds]);
+  }, [view, selectedNodeIds, isObservationMode, onExitObservationMode]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -512,6 +522,10 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     }
 
     // 5. Panning (Hand Tool or Canvas Click)
+    // Exit observation mode when user starts panning
+    if (isObservationMode) {
+      onExitObservationMode?.();
+    }
     setIsDraggingCanvas(true);
     setLastMousePos({ x: e.clientX, y: e.clientY });
   };
@@ -693,6 +707,11 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   };
 
   const handleWheel = (e: React.WheelEvent) => {
+    // Exit observation mode on any wheel interaction (pan or zoom)
+    if (isObservationMode) {
+      onExitObservationMode?.();
+    }
+    
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const newScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.scale - e.deltaY * 0.001));
@@ -808,6 +827,10 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
     >
+      {/* Observation Mode Border Overlay - Always on top */}
+      {isObservationMode && (
+        <div className="absolute inset-0 pointer-events-none z-[9999] border-[3px] border-moxt-brand-7" />
+      )}
       <div
         className={`absolute top-0 left-0 w-full h-full origin-top-left pointer-events-none ${!isDraggingCanvas ? 'transition-transform duration-150 ease-out' : ''}`}
         style={{
@@ -916,14 +939,14 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         ${showActiveBorder ? 'border-2 border-moxt-brand-7 shadow-[0_0_20px_rgba(0,191,75,0.2)]' : 'border border-moxt-line-1'}
                         ${!isDragging && !isJustCreated ? 'transition-all duration-200' : ''}
                         ${node.type === NodeType.SCREEN || isMentioned || isOperating || nodeConfirmStatus === 'pending' ? 'overflow-visible' : 'overflow-hidden'}
-                        ${!showActiveBorder && isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
-                        ${!showActiveBorder && isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
-                        ${!showActiveBorder && isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
-                        ${!showActiveBorder && isMentioned ? 'ring-2 ring-blue-500' : ''}
+                        ${!showActiveBorder && isHovered ? 'outline outline-2 outline-moxt-brand-7/50 shadow-lg' : ''}
+                        ${!showActiveBorder && isHoveredInSelectionMode ? 'outline outline-2 outline-blue-500/50 shadow-lg' : ''}
+                        ${!showActiveBorder && isSelected ? 'outline outline-2 outline-moxt-brand-7' : ''}
+                        ${!showActiveBorder && isMentioned ? 'outline outline-2 outline-blue-500' : ''}
                         ${isDragging ? 'scale-[1.01] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
                         ${isJustCreated ? 'node-just-created' : ''}
-                        ${nodeConfirmStatus === 'pending' ? 'ring-2 ring-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.3)]' : ''}
+                        ${nodeConfirmStatus === 'pending' ? 'outline outline-2 outline-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.3)]' : ''}
                     `}
                     style={{
                         left: node.x,
@@ -936,9 +959,15 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     onMouseEnter={() => setHoveredNodeId(node.id)}
                     onMouseLeave={() => setHoveredNodeId(null)}
                 >
-                    {/* Observation/Generating Tab */}
+                    {/* Observation/Generating Tab - Fixed size (counter-scaled) */}
                     {showActiveBorder && (
-                        <div className="absolute -top-[34px] left-[-2px] flex items-center z-50">
+                        <div 
+                            className="absolute left-[6px] flex items-center z-50 origin-bottom-left"
+                            style={{
+                                top: -34 / view.scale,
+                                transform: `scale(${1 / view.scale})`
+                            }}
+                        >
                              <div className="bg-moxt-brand-7 text-white text-xs font-medium px-3 py-1.5 rounded-t-lg shadow-sm whitespace-nowrap flex items-center gap-2">
                                  Paraflow is working
                              </div>
@@ -970,11 +999,12 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         <IntegrationNode title={node.title} data={node.data as IntegrationData} loading={node.status === 'loading'} onEdit={() => onEditNode(node.id)} />
                     )}
 
-                    {/* Mention Badge */}
+                    {/* Mention Badge - Fixed size (counter-scaled) */}
                     {isMentioned && onRemoveMention && (
                         <MentionBadge
                             nodeTitle={node.title}
                             onRemove={() => onRemoveMention(node.id)}
+                            scale={view.scale}
                         />
                     )}
 
@@ -993,14 +1023,14 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
             ))}
 
             {/* --- FLOATING CONFIRMATION WIDGET --- */}
-            {/* Positioned at top-center of all pending confirmation nodes */}
+            {/* Positioned at top-center of all pending confirmation nodes - Fixed size (counter-scaled) */}
             {pendingConfirmationBounds && pendingConfirmation && onConfirm && onRequestRevision && (
                 <div
-                    className="absolute z-[600]"
+                    className="absolute z-[600] origin-bottom"
                     style={{
                         left: pendingConfirmationBounds.x + (pendingConfirmationBounds.width / 2),
-                        top: pendingConfirmationBounds.y - 8, // 紧贴节点上方
-                        transform: 'translate(-50%, -100%)'
+                        top: pendingConfirmationBounds.y - (8 / view.scale),
+                        transform: `translate(-50%, -100%) scale(${1 / view.scale})`
                     }}
                 >
                     <NodeConfirmationWidget

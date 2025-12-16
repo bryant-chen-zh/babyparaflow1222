@@ -25,7 +25,7 @@ export const IntegrationNode: React.FC<IntegrationNodeProps> = ({ title, data, l
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-rose-400 to-pink-500 group relative rounded-lg shadow-md hover:shadow-xl transition-all overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 bg-white/10 backdrop-blur-sm border-b border-white/20 flex items-center gap-3">
+      <div className="px-4 py-3 bg-white/10 backdrop-blur-sm border-b border-white/20 flex items-center gap-3 rounded-t-lg">
         <div className="w-8 h-8 bg-white/20 text-white rounded-lg flex items-center justify-center shrink-0">
           <Zap size={16} />
         </div>
