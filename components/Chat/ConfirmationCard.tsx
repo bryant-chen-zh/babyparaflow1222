@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, AlertCircle, MapPin, Edit3, X, FileText, Layout, Monitor, Table, Zap, Globe, Pencil, ChevronRight, FileEdit, History, Locate } from 'lucide-react';
+import { CheckCircle2, AlertCircle, MapPin, Edit3, X, FileText, Layout, Monitor, Table, Zap, Globe, Pencil, ChevronRight, FileEdit, History, Locate, Play } from 'lucide-react';
 import { ConfirmationData, ConfirmationItem, NodeType } from '../../types';
 
 interface ConfirmationCardProps {
@@ -217,12 +217,17 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               </button>
             </div>
 
-            {/* Right Action (Primary) */}
+            {/* Right Action (Primary) - Support Start intent */}
             <button
               onClick={onConfirm}
-              className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-green-600 rounded-md transition-colors shadow-sm"
+              className={`px-3 py-1.5 text-12 font-semibold text-white rounded-md transition-colors shadow-sm flex items-center gap-1.5 ${
+                data.intent === 'start' 
+                  ? 'bg-moxt-brand-7 hover:bg-moxt-brand-8' 
+                  : 'bg-moxt-brand-7 hover:bg-green-600'
+              }`}
             >
-              Confirm and Continue
+              {data.intent === 'start' && <Play size={12} className="fill-current" />}
+              {data.primaryActionLabel || (data.intent === 'start' ? 'Start' : 'Confirm and Continue')}
             </button>
           </div>
         )

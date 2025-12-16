@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, MessageSquarePlus } from 'lucide-react';
-import { ConfirmationStatus } from '../../types';
+import { X, ChevronRight, MessageSquarePlus, Play } from 'lucide-react';
+import { ConfirmationStatus, ConfirmationIntent } from '../../types';
 
 interface NodeConfirmationWidgetProps {
   msgId: string;
   title: string;
   status: ConfirmationStatus;
+  intent?: ConfirmationIntent;           // 门禁类型：'confirm'（默认）或 'start'
+  primaryActionLabel?: string;           // 主按钮自定义文案
   onConfirm: (msgId: string) => void;
   onRequestRevision: (msgId: string, note: string) => void;
 }
@@ -14,6 +16,8 @@ export const NodeConfirmationWidget: React.FC<NodeConfirmationWidgetProps> = ({
   msgId,
   title,
   status,
+  intent = 'confirm',
+  primaryActionLabel,
   onConfirm,
   onRequestRevision
 }) => {
@@ -98,10 +102,16 @@ export const NodeConfirmationWidget: React.FC<NodeConfirmationWidgetProps> = ({
           {/* Status Indicator */}
           <div className="flex items-center gap-2 pl-2.5 pr-3">
             <span className="relative flex h-2 w-2 flex-shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                intent === 'start' ? 'bg-moxt-brand-7' : 'bg-orange-400'
+              }`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                intent === 'start' ? 'bg-moxt-brand-7' : 'bg-orange-500'
+              }`}></span>
             </span>
-            <span className="text-12 font-semibold text-moxt-text-1">Confirmation Needed</span>
+            <span className="text-12 font-semibold text-moxt-text-1">
+              {intent === 'start' ? 'Ready to Start' : 'Confirmation Needed'}
+            </span>
           </div>
 
           {/* Actions */}
@@ -114,9 +124,10 @@ export const NodeConfirmationWidget: React.FC<NodeConfirmationWidgetProps> = ({
             </button>
             <button
               onClick={() => onConfirm(msgId)}
-              className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 rounded-full transition-all shadow-sm"
+              className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 rounded-full transition-all shadow-sm flex items-center gap-1.5"
             >
-              Confirm & Continue
+              {intent === 'start' && <Play size={12} className="fill-current" />}
+              {primaryActionLabel || (intent === 'start' ? 'Start' : 'Confirm & Continue')}
             </button>
           </div>
         </div>

@@ -106,6 +106,9 @@ const MOCK_LUMA_DATA: {
   d1MvpCardPlan: DocumentData;
   d1UserFlow: WhiteboardData;  // Simple 3-screen flow
   
+  // Execution Plan (after PRD confirmation, before Screen generation)
+  executionPlan: DocumentData;
+  
   // S1: Fast Prototype - 3 Screen MVP
   s1ScreenA: ScreenData;  // Home/Search
   s1ScreenB: ScreenData;  // Event Detail + Register
@@ -269,6 +272,90 @@ const MOCK_LUMA_DATA: {
       // Label
       { id: 'label', type: 'text', x: 350, y: 80, width: 200, height: 30, content: 'Video Review MVP (3 Screens)', color: '#64748B' },
     ]
+  },
+
+  // === Execution Plan (after PRD confirmation, before Screen generation) ===
+  executionPlan: {
+    content: `# Execution Plan — Video Review — v1
+
+## 0) Plan Status
+
+* Status: Draft
+* Owner: Paraflow Agent
+* Date: ${new Date().toISOString().split('T')[0]}
+* Execution Mode: Design
+
+## 1) Objective (One sentence)
+
+* Objective: 生成一个 3 屏视频审片 MVP 原型，验证"创建 → 评论 → 汇总"的核心闭环
+
+## 2) Scope
+
+### In Scope
+
+* Screen A: Create review（输入项目名+视频链接）
+* Screen B: Review room（播放器+时间轴评论）
+* Screen C: Summary（评论汇总列表）
+* 页面间导航 Edges
+
+### Out of Scope (Hard No)
+
+* 用户登录/注册
+* 多文件上传
+* 团队权限管理
+* Reviewer 名字
+
+## 3) Inputs (Source of Truth — References only)
+
+* Charter: @Product Charter
+* Persona: @User Persona
+* PRD sections: @PRD: Create Review, @PRD: Review Room, @PRD: Summary
+* User Story: @User Story
+* User Flow: @User Flow (3屏)
+
+## 4) Outputs (Deliverables)
+
+* Deliverable 1: 3 屏可点击原型（Screen A/B/C）
+* Deliverable 2: 页面间导航 Edges
+* Where they live: Canvas Prototype Section
+
+## 5) TODO List (Execution Order)
+
+* [ ] TODO-1: 生成 Screen A: Create review
+  * Refs: @PRD: Create Review
+  * Done when: 页面可点击，包含输入框和按钮
+
+* [ ] TODO-2: 生成 Screen B: Review room
+  * Refs: @PRD: Review Room
+  * Done when: 播放器+评论列表+添加评论功能
+
+* [ ] TODO-3: 生成 Screen C: Summary
+  * Refs: @PRD: Summary
+  * Done when: 评论汇总列表+返回按钮
+
+* [ ] TODO-4: 创建页面间导航 Edges
+  * Refs: @User Flow (3屏)
+  * Done when: A→B→C 导航可点击
+
+## 6) Acceptance Checklist (Iteration-level)
+
+* [ ] AC-1: 3 屏可以完整走通 Happy Path
+* [ ] AC-2: 每个屏幕的 UI 符合 PRD 描述
+* [ ] AC-3: 没有超出 Scope 的额外功能
+
+## 7) Open Questions / Blockers
+
+（无）
+
+## 8) Change Control (Hard Rule)
+
+* Any scope change must:
+  1. update Define (or add a Define TODO)
+  2. re-lock Define
+  3. generate a new Plan version (v2, v3...)
+* Change Log:
+  * (Initial version)
+`
   },
 
   // === S1: Fast Prototype - 3 Screen MVP ===
@@ -1578,7 +1665,9 @@ const App = () => {
       msgId: pendingMsg.id,
       title: pendingMsg.confirmation.title,
       description: pendingMsg.confirmation.description,
-      items: pendingMsg.confirmation.items
+      items: pendingMsg.confirmation.items,
+      intent: pendingMsg.confirmation.intent,
+      primaryActionLabel: pendingMsg.confirmation.primaryActionLabel
     };
   }, [messages]);
 
@@ -2375,9 +2464,109 @@ const App = () => {
     
     const prdConfirmed = await waitForConfirmation(prdConfirmId);
     if (prdConfirmed) {
-      await addStreamingAIMessage(`✅ **PRD 锁定** → 开始生成 Prototype。`);
+      await addStreamingAIMessage(`✅ **PRD 锁定** → 正在生成 Execution Plan...`);
     }
     updatePlanStatus(planMsgId, 'prd', 'done');
+
+    // ============================================
+    // Execution Plan: 生成长期有效的执行计划文档
+    // ============================================
+    await new Promise(r => setTimeout(r, 600));
+    setCurrentTaskName('Execution Plan');
+
+    await addStreamingAIMessage(`## Execution Plan
+
+现在所有 Define 产物都已确认，我来生成一份 **Execution Plan**：
+
+这份计划将作为后续执行的**单一事实源**，包含：
+- 目标与范围
+- 输入引用（Charter/Persona/PRD...）
+- 输出交付物
+- TODO 列表（执行顺序）
+- 验收标准`);
+
+    // 创建 Execution Plan 文档节点
+    // 布局：放在 PRD 第三个文档右侧
+    const epX = d1X + 825; // PRD: Summary 右边 500px
+    const epY = d1Row2Y;
+
+    const executionPlanNode: CanvasNode = {
+      id: 'node-execution-plan-v1',
+      type: NodeType.DOCUMENT,
+      x: epX,
+      y: epY,
+      title: 'Execution Plan — Video Review — v1',
+      status: 'loading',
+      data: null,
+      sectionId: SECTION_IDS.DEFINE
+    };
+    setNodes(prev => [...prev, executionPlanNode]);
+    markNodeAsJustCreated('node-execution-plan-v1');
+    focusOnNode('node-execution-plan-v1', executionPlanNode.x, executionPlanNode.y, 450, 700);
+    const epOpId = addFileOperationMessage('create', 'document', 'Execution Plan — Video Review — v1', 'node-execution-plan-v1');
+    await new Promise(r => setTimeout(r, 1000));
+    updateFileOperationStatus(epOpId, 'success');
+    setNodes(prev => prev.map(n => n.id === 'node-execution-plan-v1' ? { ...n, status: 'done', data: MOCK_LUMA_DATA.executionPlan } : n));
+    setOperatingNode(null);
+
+    await addStreamingAIMessage(`Execution Plan 已生成。
+
+这份计划包含了接下来要做的 **4 个 TODO**：
+1. 生成 Screen A: Create review
+2. 生成 Screen B: Review room
+3. 生成 Screen C: Summary
+4. 创建页面间导航 Edges
+
+点击 **Start** 开始执行！`);
+
+    // Start 门禁确认
+    const planStartMsgId = `start-plan-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: planStartMsgId,
+      type: 'confirmation',
+      content: '',
+      timestamp: Date.now(),
+      confirmation: {
+        title: 'Execution Plan 已就绪',
+        description: '点击 Start 开始执行计划，生成 3 屏原型。',
+        items: [{ nodeId: 'node-execution-plan-v1', nodeType: NodeType.DOCUMENT, title: 'Execution Plan — Video Review — v1' }],
+        status: 'pending',
+        intent: 'start',
+        primaryActionLabel: 'Start'
+      }
+    }]);
+
+    // 等待用户点击 Start
+    const planStarted = await waitForConfirmation(planStartMsgId);
+    if (!planStarted) {
+      // 用户要求修改，暂停工作流（未来可以生成 v2）
+      setAgentIsRunning(false);
+      return;
+    }
+
+    // ============================================
+    // Plan TODO: 生成新的 Chat Plan TODO 消息
+    // ============================================
+    const planTodoSteps: PlanStep[] = [
+      { id: 'plan-todo-1', label: 'Screen A: Create review', status: 'pending' },
+      { id: 'plan-todo-2', label: 'Screen B: Review room', status: 'pending' },
+      { id: 'plan-todo-3', label: 'Screen C: Summary', status: 'pending' },
+      { id: 'plan-todo-4', label: '创建页面间导航 Edges', status: 'pending' },
+    ];
+
+    const planTodoMsgId = `plan-todo-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: planTodoMsgId,
+      type: 'ai',
+      role: 'ai',
+      content: '开始执行 Execution Plan：',
+      timestamp: Date.now(),
+      plan: planTodoSteps,
+      executionStarted: true // 隐藏 Start Execution 按钮
+    }]);
+    setCurrentPlan(planTodoSteps);
+
+    await addStreamingAIMessage(`✅ **Plan 已启动** → 开始生成 Prototype！`);
 
     // ============================================
     // Prototype: 可以点击的原型 (3 屏 MVP)
@@ -2388,7 +2577,7 @@ const App = () => {
 
     await addStreamingAIMessage(`## Step 2: Design L1 = Fast Prototype
 
-基于 Define L1，我来快速生成 **极简 3 屏原型**：
+基于 Execution Plan，我来快速生成 **极简 3 屏原型**：
 
 1. **Screen A: Create review**
    - 顶部文案：Start a new video review
@@ -2416,11 +2605,11 @@ const App = () => {
     const screenSpacing = 1100;
     const s1XStart = cx - screenSpacing; // 居中：3 屏总宽度 = 1000*3 + 100*2 = 3200，起始 x = cx - 1100
 
-    // 定义 3 屏 MVP
+    // 定义 3 屏 MVP，包含 Plan TODO ID 用于进度更新
     const s1ScreenConfigs = [
-      { id: 'node-s1-a', x: s1XStart, y: s1Y, title: 'A: Create review', data: MOCK_LUMA_DATA.s1ScreenA },
-      { id: 'node-s1-b', x: s1XStart + screenSpacing, y: s1Y, title: 'B: Review room', data: MOCK_LUMA_DATA.s1ScreenB },
-      { id: 'node-s1-c', x: s1XStart + screenSpacing * 2, y: s1Y, title: 'C: Summary', data: MOCK_LUMA_DATA.s1ScreenC },
+      { id: 'node-s1-a', x: s1XStart, y: s1Y, title: 'A: Create review', data: MOCK_LUMA_DATA.s1ScreenA, planTodoId: 'plan-todo-1' },
+      { id: 'node-s1-b', x: s1XStart + screenSpacing, y: s1Y, title: 'B: Review room', data: MOCK_LUMA_DATA.s1ScreenB, planTodoId: 'plan-todo-2' },
+      { id: 'node-s1-c', x: s1XStart + screenSpacing * 2, y: s1Y, title: 'C: Summary', data: MOCK_LUMA_DATA.s1ScreenC, planTodoId: 'plan-todo-3' },
     ];
 
     // 创建导航 Edges
@@ -2430,8 +2619,11 @@ const App = () => {
     ];
     setEdges(s1Edges);
 
-    // 创建每个屏幕
+    // 创建每个屏幕，同时更新 Plan TODO 进度
     for (const screen of s1ScreenConfigs) {
+      // 更新 Plan TODO 状态为 loading
+      updatePlanStatus(planTodoMsgId, screen.planTodoId, 'loading');
+      
       await addStreamingAIMessage(`正在创建 ${screen.title}...`);
       await new Promise(r => setTimeout(r, 300));
 
@@ -2454,8 +2646,16 @@ const App = () => {
       updateFileOperationStatus(opId, 'success');
       setNodes(prev => prev.map(n => n.id === screen.id ? { ...n, status: 'done', data: screen.data } : n));
       setOperatingNode(null);
+      
+      // 更新 Plan TODO 状态为 done
+      updatePlanStatus(planTodoMsgId, screen.planTodoId, 'done');
       await new Promise(r => setTimeout(r, 300));
     }
+
+    // 更新 Edges TODO
+    updatePlanStatus(planTodoMsgId, 'plan-todo-4', 'loading');
+    await new Promise(r => setTimeout(r, 300));
+    updatePlanStatus(planTodoMsgId, 'plan-todo-4', 'done');
 
     await addStreamingAIMessage(`这个 3 屏 MVP 闭环很清楚。
 

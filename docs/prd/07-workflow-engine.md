@@ -31,13 +31,14 @@
 | **Story Map** | D5 | 结构化的用户故事地图 | L5 迭代时从原型抽取 |
 | **Module PRDs** | D5 | 各功能模块的需求文档 | L5 迭代时创建 |
 | **Build Task Spec** | D9 | 工程视角的构建任务规格 | 进入 Build 前创建 |
+| **Execution Plan** | EP | 长期有效的执行计划文档 | Define 锁定后、Screen 生成前 |
 
 ### 工作流结构
 
 ```
-Step 0 (握手) → D1 (MVP Plan) → S1 (Fast Prototype)
-                     ↓ 确认点          ↓
-                     →→→→→→→→→→→→→→→→→→→
+Step 0 (握手) → D1 (MVP Plan) → EP (Execution Plan) → S1 (Fast Prototype)
+                     ↓ 确认点      ↓ Start 门禁           ↓
+                     →→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→
                      ↓
                 D5 (Structured Plan) → S5 (Structured Prototype)
                      ↓ 确认点          ↓
@@ -46,6 +47,11 @@ Step 0 (握手) → D1 (MVP Plan) → S1 (Fast Prototype)
                 D9 (Build Spec) → Build (Working App)
                      ↓ 确认点
 ```
+
+**关键区分**：
+- **Agent Todo**：短期工作清单，覆盖 Step 0 → D1 的 Define 过程
+- **Execution Plan**：长期计划文档，在 D1 确认后生成，包含后续执行的 TODO
+- **Start 门禁**：用户必须点击 Start 才能从 EP 进入 S1
 
 ---
 
@@ -113,18 +119,59 @@ Step 0 (握手) → D1 (MVP Plan) → S1 (Fast Prototype)
 
 ---
 
-### S1: Design L1 - Fast Prototype
+### EP: Execution Plan ⏸️ Start 门禁
 
-**前置条件**：D1 确认完成
+**前置条件**：D1 确认完成（User Story + User Flow + PRD 都已锁定）
 
-**目标**：根据 D1 生成一个可点击的快速原型
+**目标**：生成长期有效的 Execution Plan 文档，作为后续执行的单一事实源
 
 **操作**：
-1. AI 消息："D1 已确认！现在开始生成快速原型..."
+1. AI 消息："Define 阶段已完成！正在生成 Execution Plan..."
+2. 创建 `Execution Plan — <Project> — v1` Document 节点
+3. 节点内容按模板生成（包含 Objective/Scope/Inputs/Outputs/TODO/AC）
+4. Chat 发送文件操作卡片（可定位/可编辑）
+5. **⏸️ 发送 Start 门禁消息，等待用户点击 Start**
+
+**产物**：
+- **Execution Plan v1**: 长期有效的计划文档，包含：
+  - Objective（单句目标）
+  - Scope（In Scope / Out of Scope）
+  - Inputs（引用 Define 产物：@Charter, @Persona, @PRD...）
+  - Outputs（交付物列表）
+  - TODO List（执行顺序的任务列表）
+  - Acceptance Checklist（验收标准）
+  - Open Questions / Change Control
+
+**Start 门禁交互**：
+- Chat：显示 Start 门禁卡片（`intent='start'`）
+- 画布：节点显示 Start 确认控件
+- 主按钮文案：**Start**（而非 Confirm）
+- 次要操作：Ask for Changes
+
+**版本控制**：
+- Ask for Changes → 保留 v1 节点，创建 `v2` 新节点
+- 重新显示 Start 门禁
+
+**Todo 同步**：
+- Start 后，从 Plan 的 TODO List 派生新的 Chat「Plan Todo」消息
+- FloatingTodoBar 切换到 Plan Todo
+- 后续执行进度以 Plan Todo 为准
+
+---
+
+### S1: Design L1 - Fast Prototype
+
+**前置条件**：Execution Plan Start 完成
+
+**目标**：根据 Execution Plan 生成一个可点击的快速原型
+
+**操作**：
+1. AI 消息："Plan 已启动！开始生成快速原型..."
 2. 创建 3 个 Screen 节点（MVP Happy Path）
 3. 创建导航 Edges
 4. 逐个填充 Screen 内容
 5. AI 消息："S1 快速原型已生成！"
+6. 更新 Plan Todo 进度
 
 **产物**（以 Luma 为例）：
 - **Screen A: Home/Explore** - 活动发现入口

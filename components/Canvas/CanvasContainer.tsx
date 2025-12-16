@@ -1037,6 +1037,8 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         msgId={pendingConfirmation.msgId}
                         title={pendingConfirmation.title}
                         status="pending"
+                        intent={pendingConfirmation.intent}
+                        primaryActionLabel={pendingConfirmation.primaryActionLabel}
                         onConfirm={onConfirm}
                         onRequestRevision={onRequestRevision}
                     />

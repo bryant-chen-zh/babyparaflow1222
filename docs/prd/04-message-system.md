@@ -31,10 +31,18 @@ export interface ConfirmationData {
   summary: string;           // 产物摘要
   status: 'pending' | 'confirmed' | 'revision_requested';
   revisionNote?: string;     // 用户的修改意见
+  intent?: 'confirm' | 'start';       // 门禁类型：confirm（默认）或 start
+  primaryActionLabel?: string;         // 主按钮自定义文案（如 "Start"）
+}
+
+export interface PlanStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'loading' | 'waiting_confirmation' | 'done';
 }
 ```
 
-### 五种核心消息类型
+### 六种核心消息类型
 
 #### 1. User & AI Messages (基础对话)
 - **user**: 用户输入的消息
@@ -144,6 +152,79 @@ export interface ConfirmationData {
 - 需要修改状态：Header 显示红色警告图标
 
 **实现组件**: `ConfirmationCard.tsx`
+
+#### 6. Start 门禁消息（Execution Plan 启动）
+
+在 Execution Plan 文档生成后，向用户展示 Start 门禁卡片，等待用户点击 Start 才进入 Screen 生成阶段。
+
+**触发条件**：
+- 所有 Define 产物（User Story / User Flow / PRD）已确认
+- Execution Plan 文档已生成
+
+**与 Confirmation 的区别**：
+
+| 属性 | Confirmation | Start 门禁 |
+|------|--------------|------------|
+| intent | `confirm`（默认） | `start` |
+| 主按钮文案 | Confirm and Continue | **Start** |
+| 语义 | 确认产物正确性 | 启动后续执行 |
+| 后续动作 | 继续下一步 Define | 派生 Plan Todo + 生成 Screen |
+
+**卡片结构**：
+```
+┌─────────────────────────────────────┐
+│ ● Execution Plan 已生成              │
+├─────────────────────────────────────┤
+│ 点击 Start 开始执行以下任务：          │
+│                                     │
+│ 📄 Execution Plan — Video Review — v1 │
+├─────────────────────────────────────┤
+│ [Ask for Changes]          [Start]  │
+└─────────────────────────────────────┘
+```
+
+**交互规则**：
+- 「**Start**」→ Plan 状态变为 Locked，派生 Plan Todo 消息，开始生成 Screen
+- 「Ask for Changes」→ 生成 Plan v2 新节点（v1 保留），重新显示 Start 门禁
+
+**实现要点**：
+- 复用 `ConfirmationCard.tsx`，通过 `intent` 字段区分
+- `intent === 'start'` 时主按钮显示 "Start"
+- `NodeConfirmationWidget.tsx` 同步支持 Start 门禁
+
+---
+
+## 两层 Todo 体系
+
+### Agent Todo vs Plan Todo
+
+| 层级 | 来源 | 生命周期 | FloatingTodoBar 显示 |
+|------|------|----------|---------------------|
+| **Agent Todo** | executeWorkflow 中的 PlanStep[] | Define 阶段（握手 → PRD 确认） | Define 过程中跟随 |
+| **Plan Todo** | Execution Plan 文档的 §5 TODO List | Start 后 → Build 完成 | Start 后切换跟随 |
+
+### 同步机制
+
+1. **Define 阶段**：
+   - Agent Todo 消息（`plan: PlanStep[]`）驱动 FloatingTodoBar
+   - 步骤包括：Charter / Persona / User Story / User Flow / PRD
+
+2. **Execution Plan 生成后**：
+   - 从 Plan 文档的 TODO List 派生新的 `PlanStep[]`
+   - 创建新的 Chat 消息（`type='ai'`，带 `plan` 字段，`executionStarted=true`）
+   - `setCurrentPlan(planSteps)` 切换 FloatingTodoBar 跟随
+
+3. **Screen 生成阶段**：
+   - 使用 Plan Todo 消息的 messageId 调用 `updatePlanStatus()`
+   - FloatingTodoBar 实时更新进度
+
+### 历史保留
+
+- Agent Todo 消息保留在 Chat 历史中（不删除）
+- 用户可以回溯查看 Define 过程的步骤
+- Plan Todo 是"当前有效"的执行清单
+
+---
 
 ## FloatingTodoBar - 悬浮任务进度条
 

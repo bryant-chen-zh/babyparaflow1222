@@ -115,7 +115,7 @@ export interface CanvasPin {
 export interface PlanStep {
     id: string;
     label: string;
-    status: 'pending' | 'loading' | 'done';
+    status: 'pending' | 'loading' | 'waiting_confirmation' | 'done';
 }
 
 // Tool call type enum
@@ -152,10 +152,17 @@ export interface QuestionData {
   currentIndex?: number;
 }
 
+// File operation types
+export type FileOperationType = 'create' | 'write' | 'edit' | 'delete' | 'move';
+export type FileOperationTarget = 'file' | 'document' | 'whiteboard' | 'screen' | 'table' | 'integration' | 'section';
+
 // File operation message data
 export interface FileOperationData {
-  operation: 'write' | 'edit';
-  filePath: string;
+  operation: FileOperationType;
+  target: FileOperationTarget;
+  title: string;              // Display title for the file/node
+  filePath?: string;          // Optional file path (for code files)
+  nodeId?: string;            // Optional node ID (for canvas nodes)
   status: 'loading' | 'success' | 'error';
 }
 
@@ -182,6 +189,8 @@ export interface PendingConfirmation {
   title: string;
   description: string;
   items: ConfirmationItem[];
+  intent?: ConfirmationIntent;           // 门禁类型：'confirm'（默认）或 'start'
+  primaryActionLabel?: string;           // 主按钮自定义文案
 }
 
 // Node confirmation status mapping (nodeId -> status info)
@@ -192,6 +201,9 @@ export interface NodeConfirmationStatus {
   revisionNote?: string;
 }
 
+// Confirmation intent type
+export type ConfirmationIntent = 'confirm' | 'start';
+
 // Confirmation message data
 export interface ConfirmationData {
   title: string;                    // 卡片标题，如 "S1 原型确认"
@@ -199,6 +211,8 @@ export interface ConfirmationData {
   items: ConfirmationItem[];        // 待确认的文件/节点列表
   status: 'pending' | 'confirmed' | 'revision_requested';
   revisionNote?: string;            // 用户的修改意见
+  intent?: ConfirmationIntent;      // 门禁类型：'confirm'（默认）或 'start'
+  primaryActionLabel?: string;      // 主按钮自定义文案（如 "Start"）
 }
 
 // Extended message types
