@@ -126,7 +126,7 @@ export const NodeConfirmationWidget: React.FC<NodeConfirmationWidgetProps> = ({
               onClick={() => onConfirm(msgId)}
               className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-moxt-brand-8 rounded-full transition-all shadow-sm flex items-center gap-1.5"
             >
-              {intent === 'start' && <Play size={12} className="fill-current" />}
+              {intent === 'start' && <Play size={14} />}
               {primaryActionLabel || (intent === 'start' ? 'Start' : 'Confirm & Continue')}
             </button>
           </div>

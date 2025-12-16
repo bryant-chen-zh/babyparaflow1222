@@ -226,7 +226,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   : 'bg-moxt-brand-7 hover:bg-green-600'
               }`}
             >
-              {data.intent === 'start' && <Play size={12} className="fill-current" />}
+              {data.intent === 'start' && <Play size={14} />}
               {data.primaryActionLabel || (data.intent === 'start' ? 'Start' : 'Confirm and Continue')}
             </button>
           </div>
