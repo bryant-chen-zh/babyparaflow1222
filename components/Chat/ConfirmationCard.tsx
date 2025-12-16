@@ -222,7 +222,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               onClick={onConfirm}
               className="px-3 py-1.5 text-12 font-semibold text-white bg-moxt-brand-7 hover:bg-green-600 rounded-md transition-colors shadow-sm"
             >
-              Approve & Continue
+              Confirm and Continue
             </button>
           </div>
         )

@@ -525,74 +525,32 @@ Chat 侧边栏位于界面左侧，包含以下区域（从上到下）：
 
 ---
 
-### 6.2 状态面板
+### 6.2 生成中状态
 
-状态面板位于画布顶部居中位置，以胶囊形态展示当前 Agent 状态。
+当 Agent 正在操作某个节点时，画布和节点会呈现以下状态：
 
-**三种状态**：
-
-| 状态 | 触发条件 | UI 样式 | 操作按钮 |
-|------|----------|---------|----------|
-| 跟随中 | `isObservationMode = true` | 绿色实心背景 | Stop Following |
-| 工作中 | `isRunning = true` 且非跟随 | 白色背景 + 绿色边框 | Follow |
-| 暂停 | `isRunning = false` | 白色背景 + 灰色边框 | Resume |
-
-**视觉设计**：
-
-```
-┌─────────────────────────────────────┐
-│ ● Following Paraflow │ Stop Following │  ← 跟随中状态
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│   Paraflow is working  │   Follow   │  ← 工作中状态
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│ ○ Paused              │   Resume   │  ← 暂停状态
-└─────────────────────────────────────┘
-```
-
-**样式规范**：
-- 圆角：`rounded-md`
-- 阴影：`shadow-[0_8px_30px_rgb(0,0,0,0.12)]`
-- 高度：36px
-- 字号：12px
-- 按钮分隔线：1px 竖线
-
----
-
-### 6.3 画布跟随机制
+#### 6.2.1 画布聚焦
 
 **触发条件**：
 - `isObservationMode` 为 true
 - `currentOperatingNodeId` 指向有效节点
 
-**跟随逻辑**：
+**聚焦规则**：
 
-```mermaid
-sequenceDiagram
-    participant Agent as AI Agent
-    participant State as App State
-    participant Canvas as CanvasContainer
-    participant View as Canvas View
-
-    Agent->>State: 更新 currentOperatingNodeId
-    State->>Canvas: 传递 isObservationMode + nodeId
-    Canvas->>Canvas: 查找目标节点
-    Canvas->>Canvas: 计算节点尺寸和中心点
-    Canvas->>Canvas: 计算目标缩放比例（节点占屏幕 60%）
-    Canvas->>View: 更新视图位置和缩放
-```
-
-**计算规则**：
-
-| 参数 | 计算方式 |
-|------|----------|
+| 参数 | 值 / 计算方式 |
+|------|---------------|
+| 目标占比 | 节点占屏幕 **60%** |
 | 目标缩放 | `min(containerW * 0.6 / nodeW, containerH * 0.6 / nodeH)` |
 | 缩放限制 | 限制在 `MIN_ZOOM` 和 `MAX_ZOOM` 范围内 |
-| 目标位置 X | `(containerW / 2) - (nodeCenterX * scale)` |
-| 目标位置 Y | `(containerH / 2) - (nodeCenterY * scale)` |
+| 目标位置 | 节点中心点对齐屏幕中心 |
+
+**计算公式**：
+
+```
+targetScale = min(containerW * 0.6 / nodeW, containerH * 0.6 / nodeH)
+newX = (containerW / 2) - (nodeCenterX * targetScale)
+newY = (containerH / 2) - (nodeCenterY * targetScale)
+```
 
 **防抖动机制**：
 - 仅当位置变化 > 1px 或缩放变化 > 0.001 时才更新视图
@@ -600,15 +558,125 @@ sequenceDiagram
 
 ---
 
-### 6.4 用户交互规则
+#### 6.2.2 节点高亮边框
 
-**开启跟随**：
-- 点击状态面板的「Follow」按钮
-- 画布立即平移到当前操作节点
+当节点处于生成中状态时，显示醒目的高亮边框：
 
-**关闭跟随**：
-- 点击状态面板的「Stop Following」按钮
-- 画布保持在当前位置，不再自动跟随
+| 样式属性 | 值 |
+|----------|-----|
+| 边框宽度 | 2px |
+| 边框颜色 | `border-moxt-brand-7`（主题绿色） |
+| 外发光 | `shadow-[0_0_20px_rgba(0,191,75,0.2)]`（绿色光晕） |
+
+**视觉效果**：节点被绿色边框包围，并带有柔和的绿色光晕，清晰标识当前正在操作的节点。
+
+---
+
+#### 6.2.3 节点标签
+
+生成中的节点上方显示状态标签，**与骨架图同步显示**。
+
+**同步机制**：
+
+| 触发条件 | 显示内容 |
+|----------|----------|
+| `currentOperatingNodeId === node.id` | 显示标签 + 高亮边框 |
+| `node.status === 'loading'` | 显示骨架图（Skeleton） |
+
+> 这两个状态同时设置，确保标签和骨架图同步出现、同步消失。
+
+**标签样式**：
+
+| 属性 | 值 |
+|------|-----|
+| 位置 | 节点左上方（`-top-[34px] left-[-2px]`） |
+| 背景色 | `bg-moxt-brand-7`（主题绿色） |
+| 文字颜色 | 白色 |
+| 圆角 | 顶部圆角（`rounded-t-lg`） |
+| 内边距 | `px-3 py-1.5` |
+
+**标签内容**：
+
+```
+┌──────────────────────────┐
+│  Paraflow is working     │
+└──────────────────────────┴─────────────────┐
+│                                            │
+│           骨架图（Skeleton）                │
+│                                            │
+└────────────────────────────────────────────┘
+```
+
+**生命周期**：
+1. Agent 开始操作节点 → 同时设置 `currentOperatingNodeId` 和 `node.status = 'loading'`
+2. 节点显示：标签 + 高亮边框 + 骨架图
+3. 内容生成完成 → 清除 `currentOperatingNodeId`，设置 `node.status = 'done'`
+4. 节点显示：正常内容，自动选中
+
+---
+
+### 6.3 生成结束后的选中
+
+当节点生成完成后（`currentOperatingNodeId` 变为 null 或切换到下一个节点），系统会自动处理选中状态：
+
+**自动选中规则**：
+
+| 场景 | 系统行为 |
+|------|----------|
+| 节点完成生成 | 自动将该节点加入选中状态 |
+| 开始生成新节点 | 清空当前选中，聚焦新节点 |
+
+**选中状态视觉**：
+
+| 样式属性 | 值 |
+|----------|-----|
+| 选中边框 | `ring-2 ring-moxt-brand-7`（2px 主题色环） |
+| 边框颜色 | 与生成中边框一致 |
+
+**代码逻辑**：
+
+```typescript
+// 当 currentOperatingNodeId 变化时
+if (prevId && !currentOperatingNodeId) {
+  // 节点完成生成 → 自动选中
+  setSelectedNodeIds([prevId]);
+}
+if (currentOperatingNodeId) {
+  // 开始生成新节点 → 清空选中
+  setSelectedNodeIds([]);
+}
+```
+
+---
+
+### 6.4 刚创建节点动画
+
+新创建的节点会有入场动画效果：
+
+**触发条件**：
+- 节点 ID 存在于 `justCreatedNodeIds` 数组中
+
+**动画效果**：
+
+| 属性 | 值 |
+|------|-----|
+| CSS 类名 | `node-just-created` |
+| 动画时长 | 600ms |
+| 动画类型 | 缩放 + 渐显（由 CSS 定义） |
+
+**生命周期**：
+1. 节点创建时，ID 加入 `justCreatedNodeIds`
+2. 节点显示入场动画
+3. 600ms 后，ID 从数组中移除
+4. 节点恢复正常显示
+
+---
+
+### 6.5 用户交互
+
+**跟随模式控制**：
+- 用户可通过状态面板的「Follow」/「Stop Following」按钮切换模式
+- 跟随模式开启时，画布会自动跟随 Agent 操作
 
 **跟随模式下的用户操作**：
 
@@ -618,111 +686,4 @@ sequenceDiagram
 | 缩放画布 | 允许，但下次节点切换时会被重置 |
 | 点击节点 | 允许，不影响跟随状态 |
 | 编辑节点 | 允许，不影响跟随状态 |
-
-**暂停与恢复**：
-- Agent 完成所有任务后自动暂停
-- 点击「Resume」可恢复执行（如有待执行任务）
-
----
-
-### 6.5 视觉反馈
-
-**当前操作节点高亮**：
-
-当 Agent 正在操作某个节点时，该节点通过 `currentOperatingNodeId` 标识：
-- 节点边框变为主题色
-- 可添加脉冲动画效果
-
-**刚创建节点动画**：
-
-通过 `justCreatedNodeIds` 数组标识刚创建的节点：
-- 入场动画：缩放 + 渐显
-- 短暂高亮后恢复正常样式
-- 动画时长：约 500ms
-
-**节点状态指示**：
-
-| 节点状态 | 视觉表现 |
-|----------|----------|
-| 正在操作 | 主题色边框 + 脉冲动画 |
-| 刚创建 | 放大动画 + 高亮边框 |
-| 加载中 | 节点内显示加载指示器 |
-| 已完成 | 正常显示 |
-| 错误 | 红色边框 + 错误图标 |
-
----
-
-## 附录
-
-### A. 类型定义
-
-```typescript
-// 消息类型
-export type MessageType = 'user' | 'ai' | 'tool_call' | 'question' | 'file_operation' | 'thinking' | 'confirmation';
-
-// 问题选项
-export interface QuestionOption {
-  id: string;
-  label: string;
-  description?: string;
-  isOther?: boolean;        // 是否为 Other 选项（支持自定义输入）
-}
-
-// 问题数据（支持多题多选）
-export interface QuestionData {
-  questionId: string;
-  questionText: string;
-  options: QuestionOption[];
-  currentPage: number;
-  totalPages: number;
-  selectedOptionId?: string;
-  answered?: boolean;
-  allQuestions?: QuestionData[];  // 多题模式：传递所有问题
-  currentIndex?: number;
-}
-
-// 确认卡片数据
-export interface ConfirmationData {
-  title: string;                    // 卡片标题
-  description: string;              // 说明文案
-  items: ConfirmationItem[];        // 待确认的文件/节点列表
-  status: 'pending' | 'confirmed' | 'revision_requested';
-  revisionNote?: string;            // 用户的修改意见
-}
-
-export interface ConfirmationItem {
-  nodeId: string;           // 节点 ID
-  nodeType: NodeType;       // 节点类型
-  title: string;            // 文件/节点标题
-  preview?: string;         // 可选：简短预览文本
-}
-
-// 执行计划步骤
-export interface PlanStep {
-  id: string;
-  label: string;
-  status: 'pending' | 'loading' | 'done';
-}
-
-// 画布视图
-export interface CanvasView {
-  x: number;
-  y: number;
-  scale: number;
-}
-```
-
-### B. 组件映射
-
-| 功能 | 核心组件 |
-|------|----------|
-| Chat 侧边栏 | `components/Chat/ChatSidebar.tsx` |
-| 确认卡片 | `components/Chat/ConfirmationCard.tsx` |
-| 问题卡片 | `components/Chat/QuestionCard.tsx` |
-| 悬浮进度条 | `components/Chat/FloatingTodoBar.tsx` |
-| 工具调用消息 | `components/Chat/ToolCallMessage.tsx` |
-| 思考消息 | `components/Chat/ThinkingMessage.tsx` |
-| 文件操作消息 | `components/Chat/FileOperationCard.tsx` |
-| 状态面板 | `components/Canvas/AgentStatusPanel.tsx` |
-| 画布容器 | `components/Canvas/CanvasContainer.tsx` |
 

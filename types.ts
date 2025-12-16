@@ -165,12 +165,31 @@ export interface ThinkingData {
   status: 'thinking' | 'done';
 }
 
+// Confirmation status type (for both messages and canvas nodes)
+export type ConfirmationStatus = 'pending' | 'confirmed' | 'revision_requested';
+
 // Confirmation item (single file/node)
 export interface ConfirmationItem {
   nodeId: string;           // 节点 ID
   nodeType: NodeType;       // 节点类型
   title: string;            // 文件/节点标题
   preview?: string;         // 可选：简短预览文本
+}
+
+// Pending confirmation for canvas (derived from messages)
+export interface PendingConfirmation {
+  msgId: string;
+  title: string;
+  description: string;
+  items: ConfirmationItem[];
+}
+
+// Node confirmation status mapping (nodeId -> status info)
+export interface NodeConfirmationStatus {
+  status: ConfirmationStatus;
+  title: string;
+  msgId: string;
+  revisionNote?: string;
 }
 
 // Confirmation message data

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ChatSidebar } from './components/Chat/ChatSidebar';
 import { CanvasContainer } from './components/Canvas/CanvasContainer';
 import { AgentStatusPanel } from './components/Canvas/AgentStatusPanel';
@@ -8,7 +8,7 @@ import { ImmersiveView } from './components/Preview/ImmersiveView';
 import { PinModal } from './components/Editor/PinModal';
 import { DatabaseModal } from './components/Editor/DatabaseModal';
 import { IntegrationModal } from './components/Editor/IntegrationModal';
-import { CanvasNode, ChatMessage, NodeType, DocumentData, WhiteboardData, ScreenData, CanvasEdge, CanvasView, PlanStep, CanvasPin, TableData, APIData, IntegrationData, QuestionData } from './types';
+import { CanvasNode, ChatMessage, NodeType, DocumentData, WhiteboardData, ScreenData, CanvasEdge, CanvasView, PlanStep, CanvasPin, TableData, APIData, IntegrationData, QuestionData, PendingConfirmation, NodeConfirmationStatus } from './types';
 import { 
   LAYOUT_CENTER_X, 
   LAYOUT_CENTER_Y, 
@@ -1552,6 +1552,94 @@ const App = () => {
   // Pin Modal State
   const [newPinPos, setNewPinPos] = useState<{x: number, y: number} | null>(null);
 
+  // ========== Derived Confirmation State for Canvas ==========
+  // Find the current pending confirmation message (if any)
+  const pendingConfirmation = useMemo<PendingConfirmation | null>(() => {
+    const pendingMsg = messages.find(
+      msg => msg.type === 'confirmation' && msg.confirmation?.status === 'pending'
+    );
+    if (!pendingMsg || !pendingMsg.confirmation) return null;
+    return {
+      msgId: pendingMsg.id,
+      title: pendingMsg.confirmation.title,
+      description: pendingMsg.confirmation.description,
+      items: pendingMsg.confirmation.items
+    };
+  }, [messages]);
+
+  // The primary node for showing the confirmation widget (first item of pending confirmation)
+  // Other nodes in the same confirmation will only show visual highlight, not the interactive widget
+  const primaryConfirmationNodeId = useMemo<string | null>(() => {
+    if (!pendingConfirmation || pendingConfirmation.items.length === 0) return null;
+    return pendingConfirmation.items[0].nodeId;
+  }, [pendingConfirmation]);
+
+  // Build nodeId -> confirmation status mapping for all confirmation messages
+  const confirmationStatusByNodeId = useMemo<Record<string, NodeConfirmationStatus>>(() => {
+    const mapping: Record<string, NodeConfirmationStatus> = {};
+    messages.forEach(msg => {
+      if (msg.type === 'confirmation' && msg.confirmation) {
+        const { status, title, revisionNote, items } = msg.confirmation;
+        items.forEach(item => {
+          mapping[item.nodeId] = {
+            status,
+            title,
+            msgId: msg.id,
+            revisionNote
+          };
+        });
+      }
+    });
+    return mapping;
+  }, [messages]);
+
+  // Auto-focus on confirmation nodes when a new pending confirmation appears
+  const prevPendingConfirmationRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Only trigger when a NEW pending confirmation appears (not on every render)
+    const currentMsgId = pendingConfirmation?.msgId ?? null;
+    if (currentMsgId && currentMsgId !== prevPendingConfirmationRef.current) {
+      // Calculate bounding box of all confirmation nodes
+      const confirmationNodeIds = pendingConfirmation!.items.map(item => item.nodeId);
+      const confirmationNodes = nodes.filter(n => confirmationNodeIds.includes(n.id));
+      
+      if (confirmationNodes.length > 0) {
+        // Calculate bounds
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        confirmationNodes.forEach(node => {
+          const width = node.width || 450; // Default width
+          const height = node.height || 550; // Default height
+          if (node.x < minX) minX = node.x;
+          if (node.y < minY) minY = node.y;
+          if (node.x + width > maxX) maxX = node.x + width;
+          if (node.y + height > maxY) maxY = node.y + height;
+        });
+        
+        const boundsWidth = maxX - minX;
+        const boundsHeight = maxY - minY;
+        const centerX = minX + boundsWidth / 2;
+        const centerY = minY + boundsHeight / 2;
+        
+        // Calculate scale to fit all nodes with some padding
+        const screenW = window.innerWidth - 420; // Account for sidebar
+        const screenH = window.innerHeight;
+        const padding = 150; // Extra padding around the group
+        
+        const scaleByWidth = (screenW - padding * 2) / boundsWidth;
+        const scaleByHeight = (screenH - padding * 2) / boundsHeight;
+        let targetScale = Math.min(scaleByWidth, scaleByHeight, 0.6); // Max scale 0.6 to not zoom in too much
+        targetScale = Math.max(0.2, Math.min(1, targetScale)); // Clamp between 0.2 and 1
+        
+        // Pan to center the group
+        const newX = (screenW / 2) - (centerX * targetScale);
+        const newY = (screenH / 2) - (centerY * targetScale);
+        
+        setView({ x: newX, y: newY, scale: targetScale });
+      }
+    }
+    prevPendingConfirmationRef.current = currentMsgId;
+  }, [pendingConfirmation, nodes]);
+
   // --- THE DIRECTOR: Simulation Sequence ---
   const runSimulation = async () => {
       setSimulationStarted(true);
@@ -2921,6 +3009,11 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
             justCreatedNodeIds={justCreatedNodeIds}
             isObservationMode={isObservationMode}
             currentTaskName={currentTaskName}
+            pendingConfirmation={pendingConfirmation}
+            primaryConfirmationNodeId={primaryConfirmationNodeId}
+            confirmationStatusByNodeId={confirmationStatusByNodeId}
+            onConfirm={handleConfirm}
+            onRequestRevision={handleRequestRevision}
         />
 
         {/* Agent Status Panel - 画布顶部居中 */}

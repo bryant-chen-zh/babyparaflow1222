@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { CanvasNode, NodeType, CanvasView, ScreenData, CanvasEdge, CanvasTool, CanvasSection, CanvasPin, IntegrationData } from '../../types';
+import { CanvasNode, NodeType, CanvasView, ScreenData, CanvasEdge, CanvasTool, CanvasSection, CanvasPin, IntegrationData, PendingConfirmation, NodeConfirmationStatus } from '../../types';
 import { DocumentNode } from './nodes/DocumentNode';
 import { WhiteboardNode } from './nodes/WhiteboardNode';
 import { ScreenNode } from './nodes/ScreenNode';
@@ -8,6 +8,7 @@ import { APINode } from './nodes/APINode';
 import { IntegrationNode } from './nodes/IntegrationNode';
 import { PinMarker } from './PinMarker';
 import { MentionBadge } from './MentionBadge';
+import { NodeConfirmationWidget } from './NodeConfirmationWidget';
 import { MOBILE_SCREEN_WIDTH, MOBILE_SCREEN_HEIGHT, WEB_SCREEN_WIDTH, WEB_SCREEN_HEIGHT, MIN_ZOOM, MAX_ZOOM, SECTION_IDS } from '../../constants';
 import { Plus, Minus, FileText, GitBranch, Smartphone, GripHorizontal, MousePointer2, Hand, BoxSelect, MapPin, Table as TableIcon, Globe, Zap, Database } from 'lucide-react';
 
@@ -35,6 +36,12 @@ interface CanvasContainerProps {
   justCreatedNodeIds?: string[];
   isObservationMode?: boolean;
   currentTaskName?: string;
+  // Confirmation synced with Chat
+  pendingConfirmation?: PendingConfirmation | null;
+  primaryConfirmationNodeId?: string | null;  // Only this node shows the interactive widget
+  confirmationStatusByNodeId?: Record<string, NodeConfirmationStatus>;
+  onConfirm?: (msgId: string) => void;
+  onRequestRevision?: (msgId: string, note: string) => void;
 }
 
 interface SectionBounds {
@@ -195,7 +202,12 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     currentOperatingNodeId = null,
     justCreatedNodeIds = [],
     isObservationMode = false,
-    currentTaskName
+    currentTaskName,
+    pendingConfirmation,
+    primaryConfirmationNodeId,
+    confirmationStatusByNodeId = {},
+    onConfirm,
+    onRequestRevision
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -269,6 +281,15 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const chartBounds = useMemo(() => getSectionBounds(chartNodes), [chartNodes]);
   const screenBounds = useMemo(() => getSectionBounds(screenNodes), [screenNodes]);
   const backendBounds = useMemo(() => getSectionBounds(backendNodes, 120), [backendNodes]);
+
+  // Calculate bounding box for pending confirmation nodes
+  const pendingConfirmationBounds = useMemo(() => {
+    if (!pendingConfirmation || pendingConfirmation.items.length === 0) return null;
+    const confirmationNodeIds = pendingConfirmation.items.map(item => item.nodeId);
+    const confirmationNodes = nodes.filter(n => confirmationNodeIds.includes(n.id));
+    if (confirmationNodes.length === 0) return null;
+    return getSectionBounds(confirmationNodes, 0); // No padding, tight to nodes
+  }, [pendingConfirmation, nodes]);
 
   // --- Auto-Center Logic for Observation Mode ---
   useEffect(() => {
@@ -872,6 +893,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 const isDragging = draggedNodeId === node.id;
                 const isOperating = currentOperatingNodeId === node.id;
                 const isJustCreated = justCreatedNodeIds.includes(node.id);
+                const nodeConfirmStatus = confirmationStatusByNodeId[node.id]?.status;
 
                 // 动态计算 z-index：基础层级 + 交互状态提升
                 // 基础层级：按数组顺序，后创建的节点在上层
@@ -882,6 +904,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                 if (isMentioned) zIndex = 300 + index;
                 if (isDragging) zIndex = 400;
                 if (isOperating) zIndex = 500;
+                if (nodeConfirmStatus === 'pending') zIndex = 600; // Pending confirmation nodes on top
 
                 const showActiveBorder = isOperating;
 
@@ -892,7 +915,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     className={`canvas-node absolute shadow-sm rounded-lg bg-moxt-fill-white
                         ${showActiveBorder ? 'border-2 border-moxt-brand-7 shadow-[0_0_20px_rgba(0,191,75,0.2)]' : 'border border-moxt-line-1'}
                         ${!isDragging && !isJustCreated ? 'transition-all duration-200' : ''}
-                        ${node.type === NodeType.SCREEN || isMentioned || isOperating ? 'overflow-visible' : 'overflow-hidden'}
+                        ${node.type === NodeType.SCREEN || isMentioned || isOperating || nodeConfirmStatus === 'pending' ? 'overflow-visible' : 'overflow-hidden'}
                         ${!showActiveBorder && isHovered ? 'ring-2 ring-moxt-brand-7/50 shadow-lg' : ''}
                         ${!showActiveBorder && isHoveredInSelectionMode ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}
                         ${!showActiveBorder && isSelected ? 'ring-2 ring-moxt-brand-7' : ''}
@@ -900,9 +923,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         ${isDragging ? 'scale-[1.01] cursor-grabbing' : ''}
                         ${isCanvasSelectionMode ? 'cursor-pointer' : ''}
                         ${isJustCreated ? 'node-just-created' : ''}
-                        ${node.confirmationStatus === 'pending' ? 'ring-2 ring-orange-500 animate-pulse' : ''}
-                        ${node.confirmationStatus === 'confirmed' ? 'ring-2 ring-green-500' : ''}
-                        ${node.confirmationStatus === 'revision_requested' ? 'ring-2 ring-red-500' : ''}
+                        ${nodeConfirmStatus === 'pending' ? 'ring-2 ring-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.3)]' : ''}
                     `}
                     style={{
                         left: node.x,
@@ -957,18 +978,6 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                         />
                     )}
 
-                    {/* Confirmation Status Badge */}
-                    {node.confirmationStatus && (
-                        <div className={`absolute -top-2 -right-2 z-30 px-2 py-1 rounded-full text-xs font-semibold shadow-md flex items-center gap-1
-                            ${node.confirmationStatus === 'pending' ? 'bg-orange-500 text-white' : ''}
-                            ${node.confirmationStatus === 'confirmed' ? 'bg-green-500 text-white' : ''}
-                            ${node.confirmationStatus === 'revision_requested' ? 'bg-red-500 text-white' : ''}
-                        `}>
-                            {node.confirmationStatus === 'pending' && '⏳ Pending'}
-                            {node.confirmationStatus === 'confirmed' && '✓ Confirmed'}
-                            {node.confirmationStatus === 'revision_requested' && '✎ Revision'}
-                        </div>
-                    )}
                 </div>
             )})}
 
@@ -982,6 +991,27 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     onDelete={() => onDeletePin?.(pin.id)}
                 />
             ))}
+
+            {/* --- FLOATING CONFIRMATION WIDGET --- */}
+            {/* Positioned at top-center of all pending confirmation nodes */}
+            {pendingConfirmationBounds && pendingConfirmation && onConfirm && onRequestRevision && (
+                <div
+                    className="absolute z-[600]"
+                    style={{
+                        left: pendingConfirmationBounds.x + (pendingConfirmationBounds.width / 2),
+                        top: pendingConfirmationBounds.y - 8, // 紧贴节点上方
+                        transform: 'translate(-50%, -100%)'
+                    }}
+                >
+                    <NodeConfirmationWidget
+                        msgId={pendingConfirmation.msgId}
+                        title={pendingConfirmation.title}
+                        status="pending"
+                        onConfirm={onConfirm}
+                        onRequestRevision={onRequestRevision}
+                    />
+                </div>
+            )}
 
         </div>
       </div>
