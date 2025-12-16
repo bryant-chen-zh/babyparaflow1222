@@ -525,11 +525,68 @@ Chat 侧边栏位于界面左侧，包含以下区域（从上到下）：
 
 ---
 
-### 6.2 生成中状态
+### 6.2 观察模式状态面板
+
+当 Agent 正在运行时，画布顶部居中显示状态面板。面板有两种形态：
+
+#### 6.2.1 跟随状态（Following Paraflow）
+
+当 `isObservationMode` 为 true 时，显示绑定在画布边框上的状态条：
+
+| 属性 | 值 |
+|------|-----|
+| 位置 | 画布顶部居中，紧贴边框（`top: -1px`） |
+| 背景色 | `bg-moxt-brand-7`（主题绿色） |
+| 文字颜色 | 白色 |
+| 圆角 | 底部圆角（`rounded-b-lg`），顶部无圆角 |
+| 边框 | 左右和底部边框（`border-x border-b border-moxt-brand-7`） |
+
+**内容**：
+- Eye 图标（带 `animate-pulse` 动画）
+- 「Following Paraflow」文字
+- 分隔线
+- 「Stop Follow」按钮
+
+#### 6.2.2 工作状态（Paraflow is working）
+
+当 `isObservationMode` 为 false 但 Agent 仍在运行时，显示悬浮胶囊：
+
+| 属性 | 值 |
+|------|-----|
+| 位置 | 画布顶部居中，向下偏移 16px（`top-4`） |
+| 背景色 | 白色 |
+| 边框 | `border-2 border-moxt-brand-7/20` |
+| 圆角 | 全圆角（`rounded-full`） |
+| 阴影 | `shadow-lg` |
+
+**内容**：
+- 绿色脉冲圆点（`animate-pulse`）
+- 「Paraflow is working」文字
+- 「Follow」按钮（绿色圆角按钮）
+
+---
+
+### 6.3 画布高亮边框
+
+当观察模式开启时，画布区域显示醒目的高亮边框：
+
+| 属性 | 值 |
+|------|-----|
+| 实现方式 | 独立的 overlay `div`，使用 `absolute inset-0` |
+| 边框宽度 | 3px |
+| 边框颜色 | `border-moxt-brand-7`（主题绿色） |
+| 层级 | `z-[9999]`（最高层级，始终可见） |
+| 事件穿透 | `pointer-events-none` |
+
+**技术说明**：使用独立的 overlay 层而非节点的 `ring` 属性，确保边框始终显示在所有画布内容之上。
+
+---
+
+### 6.4 生成中状态
 
 当 Agent 正在操作某个节点时，画布和节点会呈现以下状态：
 
-#### 6.2.1 画布聚焦
+#### 6.4.1 画布自动聚焦
 
 **触发条件**：
 - `isObservationMode` 为 true
@@ -558,7 +615,7 @@ newY = (containerH / 2) - (nodeCenterY * targetScale)
 
 ---
 
-#### 6.2.2 节点高亮边框
+#### 6.4.2 节点高亮边框
 
 当节点处于生成中状态时，显示醒目的高亮边框：
 
@@ -572,7 +629,7 @@ newY = (containerH / 2) - (nodeCenterY * targetScale)
 
 ---
 
-#### 6.2.3 节点标签
+#### 6.4.3 节点标签
 
 生成中的节点上方显示状态标签，**与骨架图同步显示**。
 
@@ -589,11 +646,12 @@ newY = (containerH / 2) - (nodeCenterY * targetScale)
 
 | 属性 | 值 |
 |------|-----|
-| 位置 | 节点左上方（`-top-[34px] left-[-2px]`） |
+| 位置 | 节点左上方，右移 6px 避开圆角（`left-[6px]`） |
 | 背景色 | `bg-moxt-brand-7`（主题绿色） |
 | 文字颜色 | 白色 |
 | 圆角 | 顶部圆角（`rounded-t-lg`） |
 | 内边距 | `px-3 py-1.5` |
+| 缩放 | 固定大小，使用 `scale(1 / view.scale)` 反向缩放 |
 
 **标签内容**：
 
@@ -615,7 +673,66 @@ newY = (containerH / 2) - (nodeCenterY * targetScale)
 
 ---
 
-### 6.3 生成结束后的选中
+### 6.5 UI 元素固定大小
+
+画布上的部分 UI 元素需要保持固定视觉大小，不随画布缩放而变化。
+
+#### 6.5.1 固定大小元素列表
+
+| 元素 | 说明 |
+|------|------|
+| 节点工作标签 | 「Paraflow is working」标签 |
+| 确认控件 | Pending Confirmation 的交互按钮 |
+| Mention 标签 | 节点上的 @引用标签 |
+
+#### 6.5.2 实现方式
+
+使用 CSS `transform: scale(1 / view.scale)` 进行反向缩放：
+
+```tsx
+// 示例：节点工作标签
+<div
+  className="absolute left-[6px] flex items-center z-50 origin-bottom-left"
+  style={{
+    top: -34 / view.scale,
+    transform: `scale(${1 / view.scale})`
+  }}
+>
+  <div className="bg-moxt-brand-7 text-white text-xs font-medium px-3 py-1.5 rounded-t-lg">
+    Paraflow is working
+  </div>
+</div>
+```
+
+**关键点**：
+- 使用 `origin-bottom-left` 或 `origin-bottom` 确保缩放锚点正确
+- 位置偏移量也需要除以 `view.scale`（如 `top: -34 / view.scale`）
+- 确认控件使用 `translate(-50%, -100%)` 配合反向缩放居中定位
+
+---
+
+### 6.6 层级管理（Z-index）
+
+画布上的元素按以下层级顺序渲染（从上到下）：
+
+| 层级 | 元素 | z-index |
+|------|------|---------|
+| 最高 | 观察模式边框 | `z-[9999]` |
+| 高 | 确认控件 | `z-[600]` |
+| 中高 | 操作中节点 | `z-index: 500` |
+| 中 | 拖动中节点 | `z-index: 400` |
+| 中低 | Mention 节点 | `z-index: 300 + index` |
+| 低 | 选中节点 | `z-index: 200 + index` |
+| 较低 | 悬停节点 | `z-index: 100 + index` |
+| 基础 | 普通节点 | `z-index: 10 + index` |
+
+**节点边框实现**：
+- 使用 `outline` 而非 `ring`，避免被节点内部内容遮挡
+- 内部组件（header/footer）需要匹配外层圆角（`rounded-t-lg` / `rounded-b-lg`）
+
+---
+
+### 6.7 生成结束后的选中
 
 当节点生成完成后（`currentOperatingNodeId` 变为 null 或切换到下一个节点），系统会自动处理选中状态：
 
@@ -630,8 +747,8 @@ newY = (containerH / 2) - (nodeCenterY * targetScale)
 
 | 样式属性 | 值 |
 |----------|-----|
-| 选中边框 | `ring-2 ring-moxt-brand-7`（2px 主题色环） |
-| 边框颜色 | 与生成中边框一致 |
+| 选中边框 | `outline outline-2 outline-moxt-brand-7`（2px 主题色描边） |
+| 边框偏移 | 内嵌显示（无 offset） |
 
 **代码逻辑**：
 
@@ -649,7 +766,7 @@ if (currentOperatingNodeId) {
 
 ---
 
-### 6.4 刚创建节点动画
+### 6.8 刚创建节点动画
 
 新创建的节点会有入场动画效果：
 
@@ -672,18 +789,52 @@ if (currentOperatingNodeId) {
 
 ---
 
-### 6.5 用户交互
+### 6.9 用户交互
 
-**跟随模式控制**：
-- 用户可通过状态面板的「Follow」/「Stop Following」按钮切换模式
-- 跟随模式开启时，画布会自动跟随 Agent 操作
+#### 6.9.1 观察模式的自动激活
 
-**跟随模式下的用户操作**：
+当 Agent 开始运行时（`agentIsRunning` 变为 true），系统自动开启观察模式：
+
+```typescript
+useEffect(() => {
+  if (agentIsRunning) {
+    setIsObservationMode(true);
+  } else {
+    setIsObservationMode(false);
+  }
+}, [agentIsRunning]);
+```
+
+#### 6.9.2 跟随模式控制
+
+| 操作 | 效果 |
+|------|------|
+| 点击「Stop Follow」 | 退出观察模式，但 Agent 继续运行 |
+| 点击「Follow」 | 重新进入观察模式 |
+
+#### 6.9.3 用户操作触发退出
+
+以下用户操作会自动退出观察模式：
 
 | 用户操作 | 系统响应 |
 |----------|----------|
-| 拖拽画布 | 允许，但下次节点切换时会被拉回 |
-| 缩放画布 | 允许，但下次节点切换时会被重置 |
+| 拖拽画布（Pan） | 调用 `onExitObservationMode()`，退出观察模式 |
+| 缩放画布（Zoom） | 调用 `onExitObservationMode()`，退出观察模式 |
+| 滚轮滚动 | 调用 `onExitObservationMode()`，退出观察模式 |
+| 缩放按钮（+/-） | 调用 `onExitObservationMode()`，退出观察模式 |
+
+**不会退出的操作**：
+
+| 用户操作 | 系统响应 |
+|----------|----------|
 | 点击节点 | 允许，不影响跟随状态 |
+| 拖动节点 | 允许，不影响跟随状态 |
 | 编辑节点 | 允许，不影响跟随状态 |
+
+#### 6.9.4 退出后的行为
+
+退出观察模式后：
+- 画布停止自动跟随，用户可自由浏览
+- 顶部状态面板切换为「Paraflow is working」+ 「Follow」按钮
+- 用户可随时点击「Follow」重新进入观察模式
 
