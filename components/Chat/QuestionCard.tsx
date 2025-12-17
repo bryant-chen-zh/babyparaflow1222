@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { QuestionData } from '../../types';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, RotateCcw } from 'lucide-react';
 
 interface QuestionCardProps {
   question: QuestionData;
@@ -109,18 +109,35 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
 
   // 折叠状态：显示答案摘要
   if (collapsed) {
-    return (
-      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg mb-4 p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <HelpCircle className="text-moxt-brand-7" size={14} />
-          <span className="text-13 font-semibold text-moxt-text-1">Answers Summary</span>
+    // 判断是否有任意作答
+    const hasAnyAnswer = allQuestions.some(q => (selectedAnswers[q.questionId]?.length ?? 0) > 0);
+
+    // 完全跳过状态：仅显示 "Questions skipped" 标题卡
+    if (!hasAnyAnswer) {
+      return (
+        <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg mb-4 p-3">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="text-moxt-text-3" size={14} />
+            <span className="text-13 font-medium text-moxt-text-2">Questions skipped</span>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          {allQuestions.map((q, index) => {
+      );
+    }
+
+    // 有作答状态：显示 "Answers" 卡片 + 题目列表
+    return (
+      <div className="bg-moxt-fill-white border border-moxt-line-1 rounded-lg mb-4 flex flex-col shadow-sm">
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-moxt-line-1 bg-moxt-fill-1/30">
+          <HelpCircle className="text-moxt-brand-7" size={14} />
+          <span className="text-13 font-semibold text-moxt-text-1">Answers</span>
+        </div>
+        <div className="p-3 space-y-3">
+          {allQuestions.map((q) => {
             const selectedIds = selectedAnswers[q.questionId] || [];
-            let answerLabel = 'Skipped';
+            const hasAnswer = selectedIds.length > 0;
             
-            if (selectedIds.length > 0) {
+            let answerLabel = '';
+            if (hasAnswer) {
               const labels = selectedIds.map(id => {
                 if (id === 'other') {
                   return customTexts[q.questionId] || 'Other';
@@ -132,8 +149,13 @@ export function QuestionCard({ question, onSelectOption, onSkip, onContinue, col
             }
 
             return (
-              <div key={q.questionId} className="text-13 text-moxt-text-2">
-                <span className="font-medium text-moxt-text-1">Question {index + 1}/{totalQuestions}:</span> {answerLabel}
+              <div key={q.questionId} className="space-y-0.5">
+                {/* 题干行 */}
+                <div className="text-12 font-medium text-moxt-text-1">{q.questionText}</div>
+                {/* 答案行 */}
+                <div className="text-12 text-moxt-text-3 leading-snug">
+                  {hasAnswer ? answerLabel : 'Skipped'}
+                </div>
               </div>
             );
           })}
