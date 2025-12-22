@@ -41,3 +41,61 @@ export const SECTION_IDS = {
   PROTOTYPE: 'section-prototype', // Design phase (S1/S5 screens)
   BUILD: 'section-build'          // Build phase artifacts
 };
+
+// ============================================
+// File Upload Constants
+// ============================================
+
+// Supported image formats (MIME types)
+export const SUPPORTED_IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/svg+xml'
+] as const;
+
+// Supported document formats (extensions)
+export const SUPPORTED_DOCUMENT_EXTENSIONS = [
+  '.txt',
+  '.pdf',
+  '.html',
+  '.json',
+  '.md'
+] as const;
+
+// Combined accept string for file input
+export const FILE_INPUT_ACCEPT = [
+  ...SUPPORTED_IMAGE_MIME_TYPES,
+  ...SUPPORTED_DOCUMENT_EXTENSIONS
+].join(',');
+
+// File size limits
+export const MAX_SINGLE_FILE_SIZE = 10 * 1024 * 1024;  // 10MB per file
+export const MAX_TOTAL_FILE_SIZE = 100 * 1024 * 1024;  // 100MB total
+export const MAX_FILE_COUNT = 10;                       // Max 10 files
+
+// Format to extension mapping (for display)
+export const FORMAT_EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+  'image/svg+xml': 'svg',
+  'text/plain': 'txt',
+  'application/pdf': 'pdf',
+  'text/html': 'html',
+  'application/json': 'json',
+  'text/markdown': 'md'
+};
+
+// Error messages
+export const UPLOAD_ERROR_MESSAGES = {
+  unsupported_format: 'Unsupported file type. Please upload a supported format.',
+  file_too_large: 'Each file must be smaller than 10MB.',
+  too_many_files: 'You may only upload up to 10 files at a time.',
+  total_size_exceeded: 'Total file size exceeds the 100MB limit.',
+  network_error: 'Network error. Upload interrupted. Please try again.',
+  unknown_error: 'Unknown error occurred',
+  upload_failed: (fileName: string) => `Failed to upload ${fileName}. Please try again.`
+} as const;

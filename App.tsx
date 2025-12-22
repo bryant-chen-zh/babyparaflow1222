@@ -8,7 +8,7 @@ import { ImmersiveView } from './components/Preview/ImmersiveView';
 import { PinModal } from './components/Editor/PinModal';
 import { DatabaseModal } from './components/Editor/DatabaseModal';
 import { IntegrationModal } from './components/Editor/IntegrationModal';
-import { CanvasNode, ChatMessage, NodeType, DocumentData, WhiteboardData, ScreenData, CanvasEdge, CanvasView, PlanStep, CanvasPin, TableData, APIData, IntegrationData, QuestionData, PendingConfirmation, NodeConfirmationStatus } from './types';
+import { CanvasNode, ChatMessage, NodeType, DocumentData, WhiteboardData, ScreenData, CanvasEdge, CanvasView, PlanStep, CanvasPin, TableData, APIData, IntegrationData, QuestionData, PendingConfirmation, NodeConfirmationStatus, MessageAttachment } from './types';
 import { 
   LAYOUT_CENTER_X, 
   LAYOUT_CENTER_Y, 
@@ -1634,6 +1634,9 @@ const App = () => {
   const [mentionedNodeIds, setMentionedNodeIds] = useState<string[]>([]);
   const [selectedNodeForMention, setSelectedNodeForMention] = useState<{ nodeId: string; nodeTitle: string } | null>(null);
 
+  // Canvas Selection State (for showing in ChatSidebar)
+  const [selectedCanvasNodes, setSelectedCanvasNodes] = useState<CanvasNode[]>([]);
+
   // Screen Element Mention State (Blue - @ Mention for ImmersiveView only)
   const [mentionedScreenElements, setMentionedScreenElements] = useState<Record<string, any>>({});
 
@@ -3148,8 +3151,16 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
     }
   };
 
-  const handleSendMessage = (content: string) => {
-    setMessages(p => [...p, { id: Date.now().toString(), role: 'user', content, timestamp: Date.now() }]);
+  const handleSendMessage = (content: string, images?: string[], attachments?: MessageAttachment[]) => {
+    setMessages(p => [...p, { 
+      id: Date.now().toString(), 
+      type: 'user' as const,
+      role: 'user' as const, 
+      content, 
+      timestamp: Date.now(),
+      images,
+      attachments
+    }]);
     // Clear mentioned nodes and elements after sending
     setMentionedNodeIds([]);
     setMentionedScreenElements({});
@@ -3198,6 +3209,7 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
         currentPlan={currentPlan}
         onConfirm={handleConfirm}
         onRequestRevision={handleRequestRevision}
+        selectedCanvasNodes={selectedCanvasNodes}
       />
 
       <main className="flex-1 relative h-full">
@@ -3220,6 +3232,7 @@ S5 基于 S1 的 3 屏视频审片 MVP，已确认可用。
             mentionedNodeIds={mentionedNodeIds}
             onNodeMentionSelect={handleNodeMentionSelect}
             onRemoveMention={handleRemoveMention}
+            onSelectionChange={setSelectedCanvasNodes}
             currentOperatingNodeId={currentOperatingNodeId}
             justCreatedNodeIds={justCreatedNodeIds}
             isObservationMode={isObservationMode}

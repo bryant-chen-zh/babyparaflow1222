@@ -2,6 +2,7 @@
 export enum NodeType {
   DOCUMENT = 'DOCUMENT',
   WHITEBOARD = 'WHITEBOARD',
+  IMAGE = 'IMAGE',
   SCREEN = 'SCREEN',
   TABLE = 'TABLE',
   API = 'API',
@@ -22,6 +23,12 @@ export interface BaseNode {
 
 export interface DocumentData {
   content: string; // Markdown content
+}
+
+export interface ImageData {
+  src: string; // Base64 data URL or external URL
+  fileName: string; // Original file name
+  fileSize?: number; // File size in bytes
 }
 
 export interface WhiteboardElement {
@@ -93,7 +100,7 @@ export interface IntegrationData {
 }
 
 export interface CanvasNode extends BaseNode {
-  data: DocumentData | WhiteboardData | ScreenData | FlowData | TableData | APIData | IntegrationData | null;
+  data: DocumentData | WhiteboardData | ImageData | ScreenData | FlowData | TableData | APIData | IntegrationData | null;
 }
 
 export interface CanvasEdge {
@@ -218,6 +225,17 @@ export interface ConfirmationData {
 // Extended message types
 export type MessageType = 'user' | 'ai' | 'tool_call' | 'question' | 'file_operation' | 'thinking' | 'confirmation';
 
+// Attachment in chat message (simplified for display)
+export interface MessageAttachment {
+  id: string;
+  name: string;
+  size: number;                // File size in bytes
+  category: FileCategory;      // 'image' or 'document'
+  format: SupportedFormat;
+  previewUrl?: string;         // Base64 URL for images
+  content?: string;            // Text content (for txt/md/json/html)
+}
+
 export interface ChatMessage {
   id: string;
   type: MessageType;    // Message type
@@ -232,6 +250,8 @@ export interface ChatMessage {
   confirmation?: ConfirmationData;    // Confirmation data
   executionStarted?: boolean;  // Whether "Start Execution" has been clicked
   collapsed?: boolean;         // Whether the question card is collapsed
+  images?: string[];           // Legacy: Base64 image URLs (deprecated, use attachments)
+  attachments?: MessageAttachment[];  // New: All file attachments
 }
 
 export interface CanvasView {
@@ -241,6 +261,51 @@ export interface CanvasView {
 }
 
 export type CanvasTool = 'SELECT' | 'HAND' | 'PIN' | 'CREATE_SECTION' | 'CREATE_DOCUMENT' | 'CREATE_CHART' | 'CREATE_TABLE' | 'CREATE_API' | 'CREATE_INTEGRATION' | 'CREATE_EDGE';
+
+// ============================================
+// File Upload Types (Chat Input)
+// ============================================
+
+// Supported file format categories
+export type FileCategory = 'image' | 'document';
+
+// Specific file formats
+export type ImageFormat = 'png' | 'jpg' | 'jpeg' | 'webp' | 'svg';
+export type DocumentFormat = 'txt' | 'pdf' | 'html' | 'json' | 'md';
+export type SupportedFormat = ImageFormat | DocumentFormat;
+
+// Upload status
+export type UploadStatus = 'uploading' | 'done' | 'error';
+
+// Uploaded file representation
+export interface UploadedFile {
+  id: string;                    // Unique identifier
+  file: File;                    // Original File object
+  name: string;                  // File name (with extension)
+  size: number;                  // File size in bytes
+  category: FileCategory;        // 'image' or 'document'
+  format: SupportedFormat;       // Specific format (png, pdf, etc.)
+  status: UploadStatus;          // Upload status
+  previewUrl?: string;           // Base64 data URL (for images)
+  content?: string;              // Text content (for txt/md/json/html)
+  error?: string;                // Error message if upload failed
+}
+
+// Upload error types
+export type UploadErrorType = 
+  | 'unsupported_format'
+  | 'file_too_large'
+  | 'too_many_files'
+  | 'total_size_exceeded'
+  | 'network_error'
+  | 'unknown_error';
+
+// Upload error with message
+export interface UploadError {
+  type: UploadErrorType;
+  message: string;
+  fileName?: string;
+}
 
 export interface CanvasSection {
     id: string;

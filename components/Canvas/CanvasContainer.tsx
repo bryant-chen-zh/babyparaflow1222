@@ -1,7 +1,8 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { CanvasNode, NodeType, CanvasView, ScreenData, CanvasEdge, CanvasTool, CanvasSection, CanvasPin, IntegrationData, PendingConfirmation, NodeConfirmationStatus } from '../../types';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { CanvasNode, NodeType, CanvasView, ScreenData, CanvasEdge, CanvasTool, CanvasSection, CanvasPin, IntegrationData, ImageData, PendingConfirmation, NodeConfirmationStatus } from '../../types';
 import { DocumentNode } from './nodes/DocumentNode';
 import { WhiteboardNode } from './nodes/WhiteboardNode';
+import { ImageNode } from './nodes/ImageNode';
 import { ScreenNode } from './nodes/ScreenNode';
 import { TableNode } from './nodes/TableNode';
 import { APINode } from './nodes/APINode';
@@ -10,7 +11,7 @@ import { PinMarker } from './PinMarker';
 import { MentionBadge } from './MentionBadge';
 import { NodeConfirmationWidget } from './NodeConfirmationWidget';
 import { MOBILE_SCREEN_WIDTH, MOBILE_SCREEN_HEIGHT, WEB_SCREEN_WIDTH, WEB_SCREEN_HEIGHT, MIN_ZOOM, MAX_ZOOM, SECTION_IDS } from '../../constants';
-import { Plus, Minus, FileText, GitBranch, Smartphone, GripHorizontal, MousePointer2, Hand, BoxSelect, MapPin, Table as TableIcon, Globe, Zap, Database } from 'lucide-react';
+import { Plus, Minus, FileText, GitBranch, Smartphone, GripHorizontal, MousePointer2, Hand, BoxSelect, MapPin, Table as TableIcon, Globe, Zap, Database, Layout, Upload } from 'lucide-react';
 
 interface CanvasContainerProps {
   nodes: CanvasNode[];
@@ -31,6 +32,8 @@ interface CanvasContainerProps {
   mentionedNodeIds?: string[];
   onNodeMentionSelect?: (nodeId: string) => void;
   onRemoveMention?: (nodeId: string) => void;
+  // Selection change callback
+  onSelectionChange?: (selectedNodes: CanvasNode[]) => void;
   // Agent progress visualization
   currentOperatingNodeId?: string | null;
   justCreatedNodeIds?: string[];
@@ -200,6 +203,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     mentionedNodeIds = [],
     onNodeMentionSelect,
     onRemoveMention,
+    onSelectionChange,
     currentOperatingNodeId = null,
     justCreatedNodeIds = [],
     isObservationMode = false,
@@ -218,6 +222,8 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
   
   // Drawing State
   const [isDrawing, setIsDrawing] = useState(false);
@@ -238,6 +244,276 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
   const [manualSections, setManualSections] = useState<CanvasSection[]>([]);
 
+  // File input ref for import functionality
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle file import
+  const handleFileImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const GAP = 40;
+    const centerScreenX = rect.width / 2;
+    const centerScreenY = rect.height / 2;
+    const canvasCenterX = (centerScreenX - view.x) / view.scale;
+    const canvasCenterY = (centerScreenY - view.y) / view.scale;
+
+    // Process each file
+    Array.from(files).forEach((file, index) => {
+      const reader = new FileReader();
+      const isImage = file.type.startsWith('image/');
+      const isMarkdown = file.name.endsWith('.md') || file.type === 'text/markdown';
+
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (!result) return;
+
+        const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        // Find all existing nodes (documents, whiteboards, images) to avoid overlap
+        const allNodes = nodes.filter(n => 
+          n.type === NodeType.DOCUMENT || n.type === NodeType.WHITEBOARD || n.type === NodeType.IMAGE
+        );
+
+        let newX: number;
+        let newY: number;
+
+        if (isImage) {
+          // Image node dimensions
+          const width = 400;
+          const height = 350;
+
+          if (allNodes.length === 0) {
+            newX = canvasCenterX - width / 2;
+            newY = canvasCenterY - height / 2;
+          } else {
+            const rightmost = allNodes.reduce((prev, curr) => {
+              const prevRight = prev.x + (prev.width || 450);
+              const currRight = curr.x + (curr.width || 450);
+              return currRight > prevRight ? curr : prev;
+            });
+            const topmostY = Math.min(...allNodes.map(n => n.y));
+            newX = rightmost.x + (rightmost.width || 450) + GAP + (index * (width + GAP));
+            newY = topmostY;
+          }
+
+          const imageNode: CanvasNode = {
+            id: nodeId,
+            type: NodeType.IMAGE,
+            x: newX,
+            y: newY,
+            width,
+            height,
+            title: file.name,
+            status: 'done',
+            data: {
+              src: result as string,
+              fileName: file.name,
+              fileSize: file.size
+            } as ImageData
+          };
+
+          onAddNode(imageNode);
+
+          // Center view on new node
+          const newViewX = centerScreenX - (newX + width / 2) * view.scale;
+          const newViewY = centerScreenY - (newY + height / 2) * view.scale;
+          onViewChange({ ...view, x: newViewX, y: newViewY });
+
+        } else if (isMarkdown) {
+          // Document node dimensions
+          const width = 450;
+          const height = 550;
+
+          if (allNodes.length === 0) {
+            newX = canvasCenterX - width / 2;
+            newY = canvasCenterY - height / 2;
+          } else {
+            const rightmost = allNodes.reduce((prev, curr) => {
+              const prevRight = prev.x + (prev.width || 450);
+              const currRight = curr.x + (curr.width || 450);
+              return currRight > prevRight ? curr : prev;
+            });
+            const topmostY = Math.min(...allNodes.map(n => n.y));
+            newX = rightmost.x + (rightmost.width || 450) + GAP + (index * (width + GAP));
+            newY = topmostY;
+          }
+
+          const documentNode: CanvasNode = {
+            id: nodeId,
+            type: NodeType.DOCUMENT,
+            x: newX,
+            y: newY,
+            width,
+            height,
+            title: file.name,
+            status: 'done',
+            data: {
+              content: result as string
+            }
+          };
+
+          onAddNode(documentNode);
+
+          // Center view on new node
+          const newViewX = centerScreenX - (newX + width / 2) * view.scale;
+          const newViewY = centerScreenY - (newY + height / 2) * view.scale;
+          onViewChange({ ...view, x: newViewX, y: newViewY });
+        }
+      };
+
+      if (isImage) {
+        reader.readAsDataURL(file);
+      } else if (isMarkdown) {
+        reader.readAsText(file);
+      }
+    });
+
+    // Reset file input
+    event.target.value = '';
+  }, [nodes, view, onAddNode, onViewChange]);
+
+  // Open file picker
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  // Helper function to create a node directly at the center of the visible canvas
+  // If same-type nodes exist, place new node to the right of the rightmost one
+  const createNodeAtCenter = (type: 'document' | 'whiteboard' | 'section') => {
+    // Get container dimensions
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const GAP = 40; // Gap between nodes
+    
+    // Calculate center of visible area in canvas coordinates
+    const centerScreenX = rect.width / 2;
+    const centerScreenY = rect.height / 2;
+    
+    // Convert screen coordinates to canvas coordinates (for first node placement)
+    const canvasCenterX = (centerScreenX - view.x) / view.scale;
+    const canvasCenterY = (centerScreenY - view.y) / view.scale;
+    
+    const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    if (type === 'section') {
+      // Find existing manual sections
+      const existingSections = manualSections;
+      const sectionWidth = 400;
+      const sectionHeight = 300;
+      
+      let newX: number;
+      let newY: number;
+      
+      if (existingSections.length === 0) {
+        // First section: place at center
+        newX = canvasCenterX - sectionWidth / 2;
+        newY = canvasCenterY - sectionHeight / 2;
+      } else {
+        // Find rightmost section
+        const rightmost = existingSections.reduce((prev, curr) => 
+          (curr.x + curr.width) > (prev.x + prev.width) ? curr : prev
+        );
+        newX = rightmost.x + rightmost.width + GAP;
+        newY = rightmost.y; // Same Y position
+      }
+      
+      const newSection: CanvasSection = {
+        id: `section-${Date.now()}`,
+        x: newX,
+        y: newY,
+        width: sectionWidth,
+        height: sectionHeight,
+        title: 'New Section',
+        theme: 'slate'
+      };
+      setManualSections(prev => [...prev, newSection]);
+      
+      // Move canvas view to center on new section
+      const newCenterX = newX + sectionWidth / 2;
+      const newCenterY = newY + sectionHeight / 2;
+      const newViewX = centerScreenX - newCenterX * view.scale;
+      const newViewY = centerScreenY - newCenterY * view.scale;
+      onViewChange({ ...view, x: newViewX, y: newViewY });
+      
+    } else {
+      // Create a node
+      let nodeType: NodeType;
+      let title: string;
+      let data: any;
+      let width: number;
+      let height: number;
+      
+      if (type === 'document') {
+        nodeType = NodeType.DOCUMENT;
+        title = 'document.md';
+        data = { content: '' };
+        width = 450;
+        height = 550;
+      } else {
+        nodeType = NodeType.WHITEBOARD;
+        title = 'whiteboard';
+        data = { elements: [] };
+        width = 850;
+        height = 700;
+      }
+      
+      // Find ALL existing nodes (documents and whiteboards) to avoid overlap
+      const allNodes = nodes.filter(n => n.type === NodeType.DOCUMENT || n.type === NodeType.WHITEBOARD);
+      
+      let newX: number;
+      let newY: number;
+      
+      if (allNodes.length === 0) {
+        // First node: place at center
+        newX = canvasCenterX - width / 2;
+        newY = canvasCenterY - height / 2;
+      } else {
+        // Find the rightmost node among ALL nodes (to avoid overlap between different types)
+        const rightmost = allNodes.reduce((prev, curr) => {
+          const prevRight = prev.x + (prev.width || 450);
+          const currRight = curr.x + (curr.width || 450);
+          return currRight > prevRight ? curr : prev;
+        });
+        
+        // Find the topmost Y (smallest Y value) for top alignment
+        const topmostY = Math.min(...allNodes.map(n => n.y));
+        
+        const rightmostWidth = rightmost.width || 450;
+        newX = rightmost.x + rightmostWidth + GAP;
+        // Use top alignment - all nodes share the same top Y position
+        newY = topmostY;
+      }
+      
+      const newNode: CanvasNode = {
+        id: nodeId,
+        type: nodeType,
+        x: newX,
+        y: newY,
+        width,
+        height,
+        title,
+        status: 'done',
+        data
+      };
+      
+      onAddNode(newNode);
+      
+      // Move canvas view to center on new node
+      const newCenterX = newX + width / 2;
+      const newCenterY = newY + height / 2;
+      const newViewX = centerScreenX - newCenterX * view.scale;
+      const newViewY = centerScreenY - newCenterY * view.scale;
+      onViewChange({ ...view, x: newViewX, y: newViewY });
+    }
+  };
+
   // Node/Section Dragging State
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
@@ -247,6 +523,14 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number, y: number } | null>(null);
+
+  // Notify parent when selection changes
+  useEffect(() => {
+    if (onSelectionChange) {
+      const selectedNodes = nodes.filter(n => selectedNodeIds.includes(n.id));
+      onSelectionChange(selectedNodes);
+    }
+  }, [selectedNodeIds, nodes, onSelectionChange]);
 
   // Track previous operating node to auto-select it when generation completes
   const prevOperatingNodeIdRef = useRef<string | null>(null);
@@ -272,6 +556,27 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       prevOperatingNodeIdRef.current = currentOperatingNodeId;
     }
   }, [currentOperatingNodeId]);
+
+  // Close add menu when clicking outside
+  useEffect(() => {
+    if (!isAddMenuOpen) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setIsAddMenuOpen(false);
+      }
+    };
+    
+    // Use setTimeout to avoid immediate trigger from the same click that opened the menu
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isAddMenuOpen]);
 
   // Calculate Auto Sections
   const docNodes = useMemo(() => nodes.filter(n => n.sectionId === SECTION_IDS.DOCUMENT), [nodes]);
@@ -652,7 +957,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
                 if (effectiveTool === 'CREATE_DOCUMENT') {
                     type = NodeType.DOCUMENT;
-                    title = 'New Document';
+                    title = 'document.md';
                     data = { content: '' };
                 } else if (effectiveTool === 'CREATE_CHART') {
                     type = NodeType.WHITEBOARD;
@@ -706,38 +1011,78 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
     setMouseDownPos(null);
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    // Exit observation mode on any wheel interaction (pan or zoom)
-    if (isObservationMode) {
-      onExitObservationMode?.();
-    }
-    
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const newScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.scale - e.deltaY * 0.001));
+  // Use ref to store latest view and callbacks for the native event handler
+  const viewRef = useRef(view);
+  const onViewChangeRef = useRef(onViewChange);
+  const isObservationModeRef = useRef(isObservationMode);
+  const onExitObservationModeRef = useRef(onExitObservationMode);
+  
+  useEffect(() => {
+    viewRef.current = view;
+    onViewChangeRef.current = onViewChange;
+    isObservationModeRef.current = isObservationMode;
+    onExitObservationModeRef.current = onExitObservationMode;
+  }, [view, onViewChange, isObservationMode, onExitObservationMode]);
+
+  // Native wheel event handler (allows preventDefault with passive: false)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Exit observation mode on any wheel interaction (pan or zoom)
+      if (isObservationModeRef.current) {
+        onExitObservationModeRef.current?.();
+      }
       
-      // Zoom around viewport center (not mouse position)
-      const container = containerRef.current;
-      if (container) {
+      // Pinch-to-zoom: browser converts it to wheel event with ctrlKey
+      if (e.ctrlKey || e.metaKey) {
+        // CRITICAL: Prevent browser's native page zoom
+        e.preventDefault();
+        
+        const currentView = viewRef.current;
+        const newScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentView.scale - e.deltaY * 0.001));
+        
+        // Zoom around viewport center (not mouse position)
         const centerX = container.clientWidth / 2;
         const centerY = container.clientHeight / 2;
         
         // Calculate canvas point at viewport center before zoom
-        const canvasX = (centerX - view.x) / view.scale;
-        const canvasY = (centerY - view.y) / view.scale;
+        const canvasX = (centerX - currentView.x) / currentView.scale;
+        const canvasY = (centerY - currentView.y) / currentView.scale;
         
         // Calculate new view position to keep canvas point at viewport center
         const newX = centerX - canvasX * newScale;
         const newY = centerY - canvasY * newScale;
         
-        onViewChange({ x: newX, y: newY, scale: newScale });
+        onViewChangeRef.current({ x: newX, y: newY, scale: newScale });
       } else {
-      onViewChange({ ...view, scale: newScale });
+        // Normal scroll: pan the canvas
+        const currentView = viewRef.current;
+        onViewChangeRef.current({ ...currentView, x: currentView.x - e.deltaX, y: currentView.y - e.deltaY });
       }
-    } else {
-      onViewChange({ ...view, x: view.x - e.deltaX, y: view.y - e.deltaY });
-    }
-  };
+    };
+
+    // Safari-specific: gesturestart/gesturechange for pinch gestures
+    const handleGestureStart = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const handleGestureChange = (e: Event) => {
+      e.preventDefault();
+    };
+
+    // Add event listeners with { passive: false } to allow preventDefault
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('gesturestart', handleGestureStart, { passive: false });
+    container.addEventListener('gesturechange', handleGestureChange, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('gesturestart', handleGestureStart);
+      container.removeEventListener('gesturechange', handleGestureChange);
+    };
+  }, []); // Empty deps - handler uses refs for latest values
 
   // Edge Rendering Logic
   const renderEdges = () => {
@@ -813,20 +1158,31 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   };
 
   return (
-    <div 
-      ref={containerRef}
-      className={`w-full h-full bg-moxt-theme-bg overflow-hidden relative canvas-grid
-        ${effectiveTool === 'HAND' || isDraggingCanvas ? 'cursor-grab active:cursor-grabbing' : ''}
-        ${effectiveTool === 'SELECT' && !isDraggingCanvas ? 'cursor-default' : ''}
-        ${['CREATE_SECTION', 'CREATE_DOCUMENT', 'CREATE_CHART', 'CREATE_TABLE', 'CREATE_API', 'CREATE_INTEGRATION'].includes(effectiveTool) ? 'cursor-crosshair' : ''}
-        ${effectiveTool === 'PIN' ? 'cursor-copy' : ''}
-      `}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
-    >
+    <>
+      {/* Hidden file input for import functionality */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".md,.markdown,image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+        multiple
+        onChange={handleFileImport}
+        className="hidden"
+      />
+      
+      <div 
+        ref={containerRef}
+        className={`w-full h-full bg-moxt-theme-bg overflow-hidden relative canvas-grid
+          ${effectiveTool === 'HAND' || isDraggingCanvas ? 'cursor-grab active:cursor-grabbing' : ''}
+          ${effectiveTool === 'SELECT' && !isDraggingCanvas ? 'cursor-default' : ''}
+          ${['CREATE_SECTION', 'CREATE_DOCUMENT', 'CREATE_CHART', 'CREATE_TABLE', 'CREATE_API', 'CREATE_INTEGRATION'].includes(effectiveTool) ? 'cursor-crosshair' : ''}
+          ${effectiveTool === 'PIN' ? 'cursor-copy' : ''}
+        `}
+        style={{ touchAction: 'none' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
       {/* Observation Mode Border Overlay - Always on top */}
       {isObservationMode && (
         <div className="absolute inset-0 pointer-events-none z-[9999] border-[3px] border-moxt-brand-7" />
@@ -979,6 +1335,9 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
                     {node.type === NodeType.WHITEBOARD && (
                         <WhiteboardNode title={node.title} data={node.data as any} loading={node.status === 'loading'} onEdit={() => onEditNode(node.id)} />
                     )}
+                    {node.type === NodeType.IMAGE && (
+                        <ImageNode title={node.title} data={node.data as ImageData} loading={node.status === 'loading'} />
+                    )}
                     {node.type === NodeType.SCREEN && (
                         <ScreenNode
                             title={node.title}
@@ -1072,22 +1431,31 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
           <div className="w-px h-5 bg-moxt-line-1 mx-1"></div>
           
           {/* Add Menu Group */}
-          <div className="relative group">
-             <button className="p-2.5 bg-moxt-brand-7 text-white hover:opacity-90 rounded-full transition-colors">
+          <div className="relative" ref={addMenuRef}>
+             <button 
+               onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+               className={`p-2.5 bg-moxt-brand-7 text-white hover:opacity-90 rounded-full transition-colors ${isAddMenuOpen ? 'ring-2 ring-moxt-brand-7/30' : ''}`}
+             >
                 <Plus size={20} />
              </button>
-             {/* Bridge */}
-             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-20 bg-transparent" /> 
-             {/* Hover Menu */}
-             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 hidden group-hover:flex flex-col gap-1 bg-moxt-fill-white p-2 rounded-lg shadow-lg border border-moxt-line-1 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 after:content-[''] after:absolute after:top-full after:left-0 after:w-full after:h-4 after:bg-transparent">
-                 <div className="text-[10px] font-bold text-moxt-text-4 uppercase px-3 py-1 tracking-wider">Create Entity</div>
-                 <AddMenuItem icon={BoxSelect} label="Section" onClick={() => setActiveTool('CREATE_SECTION')} active={activeTool === 'CREATE_SECTION'} />
-                 <AddMenuItem icon={FileText} label="Document" onClick={() => setActiveTool('CREATE_DOCUMENT')} active={activeTool === 'CREATE_DOCUMENT'} />
-                 <AddMenuItem icon={GitBranch} label="Chart" onClick={() => setActiveTool('CREATE_CHART')} active={activeTool === 'CREATE_CHART'} />
-                 <AddMenuItem icon={TableIcon} label="Table" onClick={() => setActiveTool('CREATE_TABLE')} active={activeTool === 'CREATE_TABLE'} />
-                 <AddMenuItem icon={Globe} label="API" onClick={() => setActiveTool('CREATE_API')} active={activeTool === 'CREATE_API'} />
-                 <AddMenuItem icon={Zap} label="Integration" onClick={() => setActiveTool('CREATE_INTEGRATION')} active={activeTool === 'CREATE_INTEGRATION'} />
-             </div>
+             {/* Menu */}
+             {isAddMenuOpen && (
+               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 flex flex-col gap-1 bg-moxt-fill-white p-2 rounded-lg shadow-lg border border-moxt-line-1 min-w-[260px] animate-in fade-in slide-in-from-bottom-2 z-50">
+                 {/* Create Group */}
+                 <div className="text-[10px] font-medium text-moxt-text-4 px-3 py-1.5 tracking-wider">Create</div>
+                 <AddMenuItem icon={FileText} label="Document" onClick={() => { createNodeAtCenter('document'); setIsAddMenuOpen(false); }} active={false} />
+                 <AddMenuItem icon={Layout} label="Whiteboard" onClick={() => { createNodeAtCenter('whiteboard'); setIsAddMenuOpen(false); }} active={false} />
+                 <AddMenuItem icon={BoxSelect} label="Section" onClick={() => { createNodeAtCenter('section'); setIsAddMenuOpen(false); }} active={false} />
+                 
+                 {/* Divider */}
+                 <div className="h-px bg-moxt-line-1 my-1 mx-2"></div>
+                 
+                 {/* Import Group */}
+                 <div className="text-[10px] font-medium text-moxt-text-4 px-3 py-1.5 tracking-wider">Import</div>
+                 <AddMenuItem icon={Upload} label="Files (Markdown, image and whiteboard)" onClick={() => { openFilePicker(); setIsAddMenuOpen(false); }} active={false} />
+                 <AddMenuItem icon={NotionIcon} label="Notion" onClick={() => { setIsAddMenuOpen(false); }} active={false} />
+               </div>
+             )}
           </div>
       </div>
 
@@ -1103,8 +1471,24 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
       </div>
 
     </div>
+    </>
   );
 };
+
+// Official Notion Icon
+const NotionIcon = ({ size = 14 }: { size?: number }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    fillRule="evenodd"
+    clipRule="evenodd"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M15.257.055l-13.31.98C.874 1.128.5 1.83.5 2.667v14.559c0 .654.233 1.213.794 1.96l3.129 4.06c.513.653.98.794 1.962.745l15.457-.932c1.307-.093 1.681-.7 1.681-1.727V4.954c0-.53-.21-.684-.829-1.135l-.106-.078L18.34.755c-1.027-.746-1.45-.84-3.083-.7zm-8.521 4.63c-1.263.086-1.549.105-2.266-.477L2.647 2.76c-.186-.187-.092-.42.375-.466l12.796-.933c1.074-.094 1.634.28 2.054.606l2.195 1.587c.093.047.326.326.047.326l-13.216.794-.162.01zM5.263 21.193V7.287c0-.606.187-.886.748-.933l15.176-.886c.515-.047.748.28.748.886v13.81c0 .609-.093 1.122-.934 1.168l-14.523.84c-.842.047-1.215-.232-1.215-.98zm14.338-13.16c.093.422 0 .842-.422.89l-.699.139v10.264c-.608.327-1.168.513-1.635.513-.747 0-.934-.232-1.495-.932l-4.576-7.185v6.952l1.448.327s0 .84-1.169.84l-3.221.186c-.094-.187 0-.654.327-.747l.84-.232V9.853L7.832 9.76c-.093-.42.14-1.026.794-1.073l3.456-.232 4.763 7.279v-6.44l-1.214-.14c-.094-.513.28-.887.747-.933l3.223-.187z"/>
+  </svg>
+);
 
 const ToolbarButton = ({ icon: Icon, active, onClick, tooltip }: { icon: any, active: boolean, onClick: () => void, tooltip: string }) => (
     <button 

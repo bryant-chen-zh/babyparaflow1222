@@ -1,14 +1,19 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare, ImagePlus, X, ChevronUp, ChevronDown, Plus, History, Search, Pencil, Trash2, Check, ArrowUp, CircleArrowRight } from 'lucide-react';
-import { ChatMessage, CanvasNode, CanvasSection, PlanStep } from '../../types';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, PanelLeftClose, PanelLeftOpen, Tornado, CheckCircle2, CircleDashed, Loader2, FileText, Layout, Monitor, Table, Zap, ListTodo, Globe, MousePointer2, AtSign, Play, Square, CheckSquare, Paperclip, X, ChevronUp, ChevronDown, Plus, History, Search, Pencil, Trash2, Check, ArrowUp, CircleArrowRight, ImagePlus } from 'lucide-react';
+import { ChatMessage, CanvasNode, CanvasSection, PlanStep, UploadedFile, UploadError, MessageAttachment } from '../../types';
 import { ToolCallMessage } from './ToolCallMessage';
 import { QuestionCard } from './QuestionCard';
 import { FloatingTodoBar } from './FloatingTodoBar';
 import { FileOperationCard } from './FileOperationCard';
 import { ThinkingMessage } from './ThinkingMessage';
 import { ConfirmationCard } from './ConfirmationCard';
+import { FileUploadList } from './FileUploadList';
+import { UploadToast } from './UploadToast';
+import { MessageAttachments } from './MessageAttachments';
 import { parseMarkdown, renderInlineStyles, Block } from '../../utils/markdownUtils';
+import { validateFile, validateBatch, processFile, filterDuplicates } from '../../utils/fileUploadUtils';
+import { FILE_INPUT_ACCEPT, MAX_FILE_COUNT } from '../../constants';
 
 // Sidebar width constraints
 const MIN_SIDEBAR_WIDTH = 320;
@@ -16,7 +21,7 @@ const MAX_SIDEBAR_WIDTH = 600;
 
 interface ChatSidebarProps {
   messages: ChatMessage[];
-  onSendMessage: (content: string, images?: string[]) => void;
+  onSendMessage: (content: string, images?: string[], attachments?: MessageAttachment[]) => void;
   onStartSimulation: () => void;
   isProcessing: boolean;
   isOpen: boolean;
@@ -40,6 +45,8 @@ interface ChatSidebarProps {
   onViewHistory?: () => void;
   onConfirm?: (messageId: string) => void;
   onRequestRevision?: (messageId: string, note: string) => void;
+  // Canvas selection state
+  selectedCanvasNodes?: CanvasNode[];
 }
 
 // Helper function to get node icon
@@ -108,11 +115,13 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onNewChat,
   onViewHistory,
   onConfirm,
-  onRequestRevision
+  onRequestRevision,
+  selectedCanvasNodes = []
 }) => {
   // State
   const [input, setInput] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadError, setUploadError] = useState<UploadError | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
@@ -129,6 +138,10 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [currentChatId] = useState('current'); // Current chat ID
+  
+  // Derived states
+  const isUploading = uploadedFiles.some(f => f.status === 'uploading');
+  const canSend = (input.trim() || uploadedFiles.length > 0) && !isProcessing && !isUploading;
 
   // Mock history data with timestamps for grouping
   const [historyItems, setHistoryItems] = useState([
@@ -232,66 +245,74 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     setIsResizing(true);
   };
 
-  const MAX_IMAGES = 4;
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-  // Compress image and convert to base64
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxSize = 1200;
-          let { width, height } = img;
-          
-          if (width > maxSize || height > maxSize) {
-            if (width > height) {
-              height = (height / width) * maxSize;
-              width = maxSize;
-            } else {
-              width = (width / height) * maxSize;
-              height = maxSize;
-            }
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
-        };
-        img.onerror = reject;
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // Handle file selection
-  const handleFileSelect = async (files: FileList | null) => {
-    if (!files) return;
+  // Handle file selection (core upload logic)
+  const handleFileSelect = useCallback(async (files: FileList | File[] | null) => {
+    if (!files || files.length === 0) return;
     
-    const validFiles = Array.from(files)
-      .filter(f => f.type.startsWith('image/') && f.size <= MAX_FILE_SIZE)
-      .slice(0, MAX_IMAGES - images.length);
+    const fileArray = Array.from(files);
     
-    for (const file of validFiles) {
-      try {
-        const base64 = await compressImage(file);
-        setImages(prev => [...prev, base64].slice(0, MAX_IMAGES));
-      } catch (err) {
-        console.error('Failed to process image:', err);
+    // 1. Validate batch first (count and total size)
+    const batchValidation = validateBatch(fileArray, uploadedFiles);
+    if (!batchValidation.isValid && batchValidation.error) {
+      setUploadError(batchValidation.error);
+      return;
+    }
+    
+    // 2. Validate and process each file
+    const processedFiles: UploadedFile[] = [];
+    
+    for (const file of fileArray) {
+      // Validate individual file
+      const fileValidation = validateFile(file, uploadedFiles);
+      if (!fileValidation.isValid && fileValidation.error) {
+        setUploadError(fileValidation.error);
+        continue; // Skip invalid files but continue with others
+      }
+      
+      // Process valid file
+      const uploadedFile = await processFile(file);
+      if (uploadedFile) {
+        processedFiles.push(uploadedFile);
       }
     }
-  };
+    
+    if (processedFiles.length === 0) return;
+    
+    // 3. Handle duplicates (keep newest)
+    const { uniqueNew, toRemove } = filterDuplicates(processedFiles, uploadedFiles);
+    
+    // 4. Update state
+    setUploadedFiles(prev => {
+      // Remove duplicates from existing
+      const filtered = prev.filter(f => !toRemove.includes(f.id));
+      // Add new files
+      const updated = [...filtered, ...uniqueNew];
+      // Ensure we don't exceed max count
+      return updated.slice(0, MAX_FILE_COUNT);
+    });
+    
+    // 5. Simulate upload completion (since we're doing local processing)
+    // Add a small delay to show loading state for better UX
+    setTimeout(() => {
+      setUploadedFiles(prev => 
+        prev.map(f => 
+          uniqueNew.some(n => n.id === f.id) 
+            ? { ...f, status: 'done' as const } 
+            : f
+        )
+      );
+    }, 300);
+  }, [uploadedFiles]);
 
-  // Remove image
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
+  // Remove uploaded file
+  const removeUploadedFile = useCallback((id: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  // Dismiss upload error
+  const dismissUploadError = useCallback(() => {
+    setUploadError(null);
+  }, []);
 
   // Handle paste event
   useEffect(() => {
@@ -299,34 +320,50 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       const items = e.clipboardData?.items;
       if (!items) return;
       
-      const imageItems = Array.from(items).filter(item => item.type.startsWith('image/'));
-      if (imageItems.length > 0) {
+      // Get all files from clipboard (images and other files)
+      const files: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      
+      if (files.length > 0) {
         e.preventDefault();
-        const files = imageItems.map(item => item.getAsFile()).filter(Boolean) as File[];
-        handleFileSelect(files as unknown as FileList);
+        handleFileSelect(files);
       }
     };
     
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [images.length]);
+  }, [handleFileSelect]);
 
-  // Handle drag events
-  const handleDragOver = (e: React.DragEvent) => {
+  // Handle drag events (enhanced for better UX)
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
-  };
+  }, []);
 
-  const handleDragLeave = (e: React.DragEvent) => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
-  };
+    e.stopPropagation();
+    // Only set dragging to false if we're leaving the container
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragging(false);
+    }
+  }, []);
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     handleFileSelect(e.dataTransfer.files);
-  };
+  }, [handleFileSelect]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -498,11 +535,31 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if ((input.trim() || images.length > 0) && !isProcessing) {
-      // Send message with images and always trigger simulation
-      onSendMessage(input, images);
+    if (canSend) {
+      // Extract preview URLs from uploaded files for backward compatibility
+      const imageUrls = uploadedFiles
+        .filter(f => f.category === 'image' && f.previewUrl)
+        .map(f => f.previewUrl!);
+      
+      // Convert uploaded files to message attachments (including content for text files)
+      const attachments: MessageAttachment[] = uploadedFiles.map(f => ({
+        id: f.id,
+        name: f.name,
+        size: f.size,
+        category: f.category,
+        format: f.format,
+        previewUrl: f.previewUrl,
+        content: f.content  // Text content for txt/md/json/html; undefined for images and PDF
+      }));
+      
+      // Send message with images (for backward compat) and attachments
+      onSendMessage(
+        input, 
+        imageUrls.length > 0 ? imageUrls : undefined,
+        attachments.length > 0 ? attachments : undefined
+      );
       setInput('');
-      setImages([]);
+      setUploadedFiles([]);
       onStartSimulation();
     }
   };
@@ -752,7 +809,13 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     <div 
       className="h-full bg-moxt-fill-white border-r border-moxt-line-1 flex flex-col z-20 flex-shrink-0 relative"
       style={{ width: `${width}px` }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
+      {/* Upload Error Toast */}
+      <UploadToast error={uploadError} onDismiss={dismissUploadError} />
+      
       {/* Resize Handle */}
       <div
         className={`absolute top-0 right-0 w-1 h-full cursor-col-resize z-30 transition-colors hover:bg-moxt-brand-7/30 ${isResizing ? 'bg-moxt-brand-7/50' : 'bg-transparent'}`}
@@ -1088,15 +1151,20 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'max-w-[80%]' : 'w-full'}`}>
-                  {/* User Images */}
-                  {msg.role === 'user' && msg.images && msg.images.length > 0 && (
+                  {/* User Attachments (new) */}
+                  {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                    <MessageAttachments attachments={msg.attachments} align="right" />
+                  )}
+                  
+                  {/* Legacy: User Images (for backward compatibility) */}
+                  {msg.role === 'user' && !msg.attachments && msg.images && msg.images.length > 0 && (
                     <div className={`flex gap-2 flex-wrap justify-end`}>
                       {msg.images.map((img, idx) => (
                         <img
                           key={idx}
                           src={img}
                           alt={`Image ${idx + 1}`}
-                          className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-moxt-line-1"
+                          className="max-w-[120px] max-h-[120px] object-cover rounded-lg border border-moxt-line-1"
                         />
                       ))}
                     </div>
@@ -1244,18 +1312,52 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           {/* Floating Todo Bar */}
           <FloatingTodoBar plan={currentPlan || null} />
 
+          {/* Canvas Selection Indicator */}
+          {selectedCanvasNodes.length > 0 && (
+            <div className="px-4 py-2.5 border-b border-moxt-line-1 bg-moxt-fill-1/30 flex items-center gap-2 overflow-hidden">
+              <span className="text-13 text-moxt-text-3 flex-shrink-0">Selected:</span>
+              {selectedCanvasNodes.length === 1 ? (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {(() => {
+                    const node = selectedCanvasNodes[0];
+                    const IconComponent = getNodeIcon(node.type);
+                    const colorClass = getNodeColor(node.type);
+                    return (
+                      <>
+                        <IconComponent size={14} className={`${colorClass} flex-shrink-0`} />
+                        <span className="text-13 font-medium text-moxt-text-1 truncate">{node.title}</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <span className="text-13 font-semibold text-moxt-text-1">{selectedCanvasNodes.length} items</span>
+              )}
+            </div>
+          )}
+
           {/* 输入区域 */}
           <form 
             onSubmit={handleSubmit} 
             className="relative"
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
           >
-          {/* Drag Overlay */}
+          {/* Input Area Drag Overlay - Styled exactly like screenshot */}
           {isDragging && (
-            <div className="absolute inset-0 bg-moxt-brand-7/10 border-2 border-dashed border-moxt-brand-7 rounded-lg z-50 flex items-center justify-center">
-              <div className="text-moxt-brand-7 font-medium text-13">Drop images here</div>
+            <div className="absolute inset-0 z-[100] bg-[#ECFDF5]/95 border-2 border-dashed border-emerald-500 rounded-xl flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-200">
+              <div className="flex flex-col items-center gap-3">
+                {/* Icon */}
+                <div className="w-12 h-12 flex items-center justify-center relative">
+                  <ImagePlus size={36} className="text-[#334155]" strokeWidth={1.5} />
+                  <div className="absolute top-1/2 left-1/2 ml-2 mt-2 bg-[#ECFDF5] rounded-full p-[1px]">
+                    <Plus size={12} className="text-[#334155]" strokeWidth={2.5} />
+                  </div>
+                </div>
+                
+                {/* Text */}
+                <p className="text-[15px] font-medium text-[#0F172A] text-center px-4">
+                  Drop files here to add to message
+                </p>
+              </div>
             </div>
           )}
 
@@ -1310,27 +1412,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
           )}
 
-          {/* Image Preview */}
-          {images.length > 0 && (
-            <div className="flex gap-2 px-3 pt-3 pb-1 flex-wrap">
-              {images.map((img, idx) => (
-                <div key={idx} className="relative group">
-                  <img
-                    src={img}
-                    alt={`Upload ${idx + 1}`}
-                    className="w-16 h-16 object-cover rounded-lg border border-moxt-line-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(idx)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-moxt-text-1 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* File Upload Preview */}
+          <FileUploadList files={uploadedFiles} onRemove={removeUploadedFile} />
 
           <textarea
             ref={textareaRef}
@@ -1345,35 +1428,47 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
           {/* Toolbar */}
           <div className="flex items-center justify-between px-2 pb-2">
-            {/* Left: Image Button */}
+            {/* Left: File Upload Button */}
             <div className="flex items-center gap-1">
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept={FILE_INPUT_ACCEPT}
                 multiple
                 className="hidden"
-                onChange={(e) => handleFileSelect(e.target.files)}
+                onChange={(e) => {
+                  handleFileSelect(e.target.files);
+                  // Reset input value to allow re-selecting same file
+                  e.target.value = '';
+                }}
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={images.length >= MAX_IMAGES || isProcessing}
+                disabled={uploadedFiles.length >= MAX_FILE_COUNT || isProcessing}
                 className="p-1.5 hover:bg-moxt-fill-1 disabled:opacity-50 text-moxt-text-3 hover:text-moxt-text-2 rounded-md transition-colors"
-                title={`Add image (${images.length}/${MAX_IMAGES})`}
+                title={`Add files (${uploadedFiles.length}/${MAX_FILE_COUNT})`}
               >
-                <ImagePlus size={18} />
+                <Paperclip size={18} />
               </button>
             </div>
 
             {/* Right: Send Button */}
-            <button
-              type="submit"
-              disabled={(!input.trim() && images.length === 0) || isProcessing}
-              className="p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-lg transition-colors"
-            >
-              <ArrowUp size={16} strokeWidth={2.5} />
-            </button>
+            <div className="relative group">
+              <button
+                type="submit"
+                disabled={!canSend}
+                className="p-1.5 bg-moxt-brand-7 hover:opacity-90 disabled:bg-moxt-fill-2 disabled:text-moxt-text-4 text-white rounded-lg transition-colors"
+              >
+                <ArrowUp size={16} strokeWidth={2.5} />
+              </button>
+              {/* Tooltip for uploading state */}
+              {isUploading && (
+                <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-moxt-text-1 text-white text-11 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                  File upload pending
+                </div>
+              )}
+            </div>
           </div>
         </form>
         </div>
