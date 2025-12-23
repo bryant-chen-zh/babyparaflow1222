@@ -230,10 +230,10 @@ export interface MessageAttachment {
   id: string;
   name: string;
   size: number;                // File size in bytes
-  category: FileCategory;      // 'image' or 'document'
+  category: FileCategory;      // 'image', 'document', or 'code'
   format: SupportedFormat;
   previewUrl?: string;         // Base64 URL for images
-  content?: string;            // Text content (for txt/md/json/html)
+  content?: string;            // Text content (for txt/md/json/html and all code files)
 }
 
 export interface ChatMessage {
@@ -267,12 +267,13 @@ export type CanvasTool = 'SELECT' | 'HAND' | 'PIN' | 'CREATE_SECTION' | 'CREATE_
 // ============================================
 
 // Supported file format categories
-export type FileCategory = 'image' | 'document';
+export type FileCategory = 'image' | 'document' | 'code';
 
 // Specific file formats
 export type ImageFormat = 'png' | 'jpg' | 'jpeg' | 'webp' | 'svg';
-export type DocumentFormat = 'txt' | 'pdf' | 'html' | 'json' | 'md';
-export type SupportedFormat = ImageFormat | DocumentFormat;
+export type DocumentFormat = 'txt' | 'pdf' | 'json' | 'md';
+export type CodeFormat = 'ts' | 'tsx' | 'js' | 'jsx' | 'css' | 'scss' | 'html' | 'vue' | 'py' | 'yaml' | 'yml';
+export type SupportedFormat = ImageFormat | DocumentFormat | CodeFormat;
 
 // Upload status
 export type UploadStatus = 'uploading' | 'done' | 'error';

@@ -59,15 +59,30 @@ export const SUPPORTED_IMAGE_MIME_TYPES = [
 export const SUPPORTED_DOCUMENT_EXTENSIONS = [
   '.txt',
   '.pdf',
-  '.html',
   '.json',
   '.md'
+] as const;
+
+// Supported code file formats (extensions)
+export const SUPPORTED_CODE_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.css',
+  '.scss',
+  '.html',
+  '.vue',
+  '.py',
+  '.yaml',
+  '.yml'
 ] as const;
 
 // Combined accept string for file input
 export const FILE_INPUT_ACCEPT = [
   ...SUPPORTED_IMAGE_MIME_TYPES,
-  ...SUPPORTED_DOCUMENT_EXTENSIONS
+  ...SUPPORTED_DOCUMENT_EXTENSIONS,
+  ...SUPPORTED_CODE_EXTENSIONS
 ].join(',');
 
 // File size limits
@@ -77,16 +92,29 @@ export const MAX_FILE_COUNT = 10;                       // Max 10 files
 
 // Format to extension mapping (for display)
 export const FORMAT_EXTENSIONS: Record<string, string> = {
+  // Images
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
   'image/webp': 'webp',
   'image/svg+xml': 'svg',
+  // Documents
   'text/plain': 'txt',
   'application/pdf': 'pdf',
   'text/html': 'html',
   'application/json': 'json',
-  'text/markdown': 'md'
+  'text/markdown': 'md',
+  // Code files (MIME types are unreliable, mainly use extension-based detection)
+  'text/typescript': 'ts',
+  'application/typescript': 'ts',
+  'text/javascript': 'js',
+  'application/javascript': 'js',
+  'text/css': 'css',
+  'text/x-scss': 'scss',
+  'text/x-python': 'py',
+  'application/x-python': 'py',
+  'text/yaml': 'yaml',
+  'application/x-yaml': 'yaml'
 };
 
 // Error messages

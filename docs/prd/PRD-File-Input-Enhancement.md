@@ -13,9 +13,12 @@
 
 - **更宽松的图片格式**：除了现有的 PNG 和 JPG 外，新增支持 Webp、SVG。
     - 单张 ≤ 10MB；支持拖拽上传或粘贴截图
-- **其他文件格式**
-    - .txt、.pdf、.html、.json、.md
+- **文档格式**
+    - .txt、.pdf、.json、.md
     - 注：文档文件会读取文本内容（PDF 除外）传递给 AI
+- **代码文件格式**
+    - .ts、.tsx、.js、.jsx、.css、.scss、.html、.vue、.py、.yaml/.yml
+    - 注：代码文件会读取完整文本内容传递给 AI
 
 ### 涉及到要改动的地方
 
@@ -29,9 +32,12 @@
     - **上传中**：显示文件加载态，用无进度条的环状加载态
     - **上传后**：显示文件预览卡片（统一高度 64px）
         - **图片**：64x64 方形全幅缩略图
-        - **文件**：横向卡片，左侧大图标，右侧文件名 + 格式标签
+        - **文档**：横向卡片，左侧大图标，右侧文件名 + 格式标签
             - 文件名：截断展示
-            - 文件格式：依次为 HTML, MD, PDF, TXT, JSON
+            - 文件格式：MD, PDF, TXT, JSON
+        - **代码文件**：横向卡片，左侧语言图标，右侧文件名 + 语言标签
+            - 图标颜色：TypeScript 蓝色、JavaScript 黄色、CSS 紫色、HTML 橙色、Vue 绿色、Python 天蓝、YAML 粉色
+            - 语言标签：TypeScript, TSX, JavaScript, JSX, CSS, SCSS, HTML, Vue, Python, YAML
     - **展示规则**
         - 最多展示一行，超过时横向滚动展示
         - 右上角支持点击 x 按钮移除上传文件（悬浮不被裁剪）
@@ -45,14 +51,20 @@
         - **错误提示展示**：统一出现在页面上方的正中间区域（Toast 组件）
 - **文件内容处理逻辑**
     - **图片**（png/jpg/jpeg/webp/svg）：通过 `FileReader.readAsDataURL` 生成 Base64 预览
-    - **文本文件**（txt/md/json/html）：通过 `FileReader.readAsText` 读取完整内容，发送时传递给 AI
+    - **文本文件**（txt/md/json）：通过 `FileReader.readAsText` 读取完整内容，发送时传递给 AI
+    - **代码文件**（ts/tsx/js/jsx/css/scss/html/vue/py/yaml/yml）：通过 `FileReader.readAsText` 读取完整内容，发送时传递给 AI
     - **PDF**：仅传递文件元数据（文件名、大小），内容解析交由后端处理
 - **在 chat 中的展示逻辑**
-    - 一期可先暂时不支持预览，仅展示小缩略图（图片）或文件图标（文档）
+    - 分为两行展示：图片行 + 文件行
+        - **图片行**：缩略图展示，最大 120×120px，圆角边框，flex-wrap 自动换行
+        - **文件行**：文档和代码文件合并展示，紧凑样式（小图标 20px + 文件名截断 16 字符）
+    - 文档和代码文件按上传顺序混合展示，不再按类别分组
+    - 图标颜色保持与输入框预览一致
+    - 用户消息右对齐，AI 消息左对齐
 - **发送行为逻辑**
     - 所有文件上传成功时，才可以正常发送
     - 有文件正在上传时，禁用发送按钮，hover 至发送按钮，tooltip 提示「File upload pending」
-    - 发送时会将文本文件（txt/md/json/html）的内容一并传递给 AI
+    - 发送时会将文本文件（txt/md/json）及代码文件（ts/tsx/js/jsx/css/scss/html/vue/py/yaml/yml）的内容一并传递给 AI
 - **画布区**
     - 导入
         - 图片格式从 PNG/JPG 增加到 WebP 和 SVG

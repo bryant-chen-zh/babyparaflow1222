@@ -4,11 +4,13 @@ import {
   FileCategory, 
   SupportedFormat,
   ImageFormat,
-  DocumentFormat
+  DocumentFormat,
+  CodeFormat
 } from '../types';
 import {
   SUPPORTED_IMAGE_MIME_TYPES,
   SUPPORTED_DOCUMENT_EXTENSIONS,
+  SUPPORTED_CODE_EXTENSIONS,
   MAX_SINGLE_FILE_SIZE,
   MAX_TOTAL_FILE_SIZE,
   MAX_FILE_COUNT,
@@ -32,6 +34,12 @@ const isDocumentFile = (file: File): boolean => {
   return SUPPORTED_DOCUMENT_EXTENSIONS.includes(extension as any);
 };
 
+// Check if file is a supported code file
+const isCodeFile = (file: File): boolean => {
+  const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+  return SUPPORTED_CODE_EXTENSIONS.includes(extension as any);
+};
+
 // Get file format from file
 const getFileFormat = (file: File): SupportedFormat | null => {
   // Check MIME type first (for images)
@@ -39,17 +47,21 @@ const getFileFormat = (file: File): SupportedFormat | null => {
     return FORMAT_EXTENSIONS[file.type] as SupportedFormat;
   }
   
-  // Fallback to extension
+  // Fallback to extension (primary method for code files)
   const extension = file.name.split('.').pop()?.toLowerCase();
   if (extension) {
     const imageFormats: ImageFormat[] = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
-    const docFormats: DocumentFormat[] = ['txt', 'pdf', 'html', 'json', 'md'];
+    const docFormats: DocumentFormat[] = ['txt', 'pdf', 'json', 'md'];
+    const codeFormats: CodeFormat[] = ['ts', 'tsx', 'js', 'jsx', 'css', 'scss', 'html', 'vue', 'py', 'yaml', 'yml'];
     
     if (imageFormats.includes(extension as ImageFormat)) {
       return extension as ImageFormat;
     }
     if (docFormats.includes(extension as DocumentFormat)) {
       return extension as DocumentFormat;
+    }
+    if (codeFormats.includes(extension as CodeFormat)) {
+      return extension as CodeFormat;
     }
   }
   
@@ -60,6 +72,7 @@ const getFileFormat = (file: File): SupportedFormat | null => {
 const getFileCategory = (file: File): FileCategory | null => {
   if (isImageFile(file)) return 'image';
   if (isDocumentFile(file)) return 'document';
+  if (isCodeFile(file)) return 'code';
   return null;
 };
 
@@ -134,12 +147,21 @@ export const validateBatch = (
   return { isValid: true };
 };
 
-// Formats that should be read as text (PDF is handled by backend)
-const TEXT_READABLE_FORMATS: DocumentFormat[] = ['txt', 'md', 'json', 'html'];
+// Document formats that should be read as text (PDF is handled by backend)
+const TEXT_READABLE_DOC_FORMATS: DocumentFormat[] = ['txt', 'md', 'json', 'html'];
+
+// All code formats are text-readable
+const TEXT_READABLE_CODE_FORMATS: CodeFormat[] = ['ts', 'tsx', 'js', 'jsx', 'css', 'scss', 'html', 'vue', 'py', 'yaml', 'yml'];
 
 // Check if format should be read as text
-const isTextReadableFormat = (format: SupportedFormat): boolean => {
-  return TEXT_READABLE_FORMATS.includes(format as DocumentFormat);
+const isTextReadableFormat = (format: SupportedFormat, category: FileCategory): boolean => {
+  if (category === 'code') {
+    return TEXT_READABLE_CODE_FORMATS.includes(format as CodeFormat);
+  }
+  if (category === 'document') {
+    return TEXT_READABLE_DOC_FORMATS.includes(format as DocumentFormat);
+  }
+  return false;
 };
 
 // Read file as text
@@ -182,9 +204,9 @@ export const processFile = async (file: File): Promise<UploadedFile | null> => {
     }
   }
 
-  // For text-readable documents (txt, md, json, html), read content
+  // For text-readable files (documents except PDF, and all code files), read content
   // Note: PDF is NOT read here - it will be processed by backend
-  if (category === 'document' && isTextReadableFormat(format)) {
+  if (isTextReadableFormat(format, category)) {
     try {
       const content = await readFileAsText(file);
       uploadedFile.content = content;
